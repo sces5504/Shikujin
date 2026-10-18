@@ -201,11 +201,14 @@ export class World {
     if (e.hp <= 0) {
       this.kills++;
       this.score += e.score;
-      if (this.drops.length < 750)
-        this.drops.push({ x: e.x, y: e.y, value: e.xp });
+      if (e.kind === "boss") this.xp += e.xp * this.player.xpFactor;
       else {
-        let drop = this.drops[this.ids % this.drops.length];
-        drop.value += e.xp;
+        if (this.drops.length < 750)
+          this.drops.push({ x: e.x, y: e.y, value: e.xp });
+        else {
+          let drop = this.drops[this.ids % this.drops.length];
+          drop.value += e.xp;
+        }
       }
       this.burst(e.x, e.y, e.color, e.kind === "boss" ? 50 : 9);
       this.events.emit("kill", e);

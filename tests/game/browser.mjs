@@ -105,6 +105,10 @@ try {
   await page.evaluate(() => {
     const w = window.__SHIKUJIN__.app.world;
     const b = w.enemies.find((e) => e.kind === "boss");
+    w.state = "playing";
+    w.xp = 0;
+    w.drops = [];
+    window.__SHIKUJIN__.app.closeModal();
     w.hit(b, 1e9);
     w.waveTime = 24;
   });
@@ -118,9 +122,10 @@ try {
   );
   await page.waitForSelector('[data-supply="repair"]');
   await page.locator('[data-supply="repair"]').click();
-  assert.equal(
-    await page.evaluate(() => window.__SHIKUJIN__.app.world.state),
-    "playing",
+  assert.ok(
+    ["playing", "upgrade"].includes(
+      await page.evaluate(() => window.__SHIKUJIN__.app.world.state),
+    ),
   );
   await page.evaluate(() => window.__SHIKUJIN__.app.world.finish());
   console.log("QA: settlement");
@@ -259,6 +264,7 @@ try {
   await mobile.screenshot({ path: "test-results/combat-mobile.png" });
   // Production build serves under a repository subpath, including portrait and module URLs.
   console.log("QA: built subpath");
+  await page.bringToFront();
   await page.goto("http://127.0.0.1:4179/dist/?qa");
   await page.waitForFunction(() => window.__SHIKUJIN__);
   await page.locator("#launch").click();
@@ -274,9 +280,8 @@ try {
     w.mapIndex = 4;
     w.player.invuln = 999;
   });
-  await page.waitForTimeout(100);
-  assert.ok(
-    (await page.locator("#bossName").textContent()).includes("終焉日蝕"),
+  await page.waitForFunction(() =>
+    document.querySelector("#bossName").textContent.includes("終焉日蝕"),
   );
   await page.evaluate(() => {
     const w = window.__SHIKUJIN__.app.world;

@@ -197,6 +197,8 @@ test("campaign has five distinct bosses, resupply and an actual ending; endless 
     const bosses = [];
     for (let chapter = 0; chapter < 5; chapter++) {
       w.state = "playing";
+      w.xp = 0;
+      w.drops = [];
       w.wave = 4 + chapter * 5;
       w.waveTime = 24;
       w.step(1 / 60);
@@ -264,4 +266,12 @@ test("all bosses emit different finite patterned bullets with warning and rest w
     w.step(1 / 60);
     assert.ok(e.enraged);
   }
+});
+
+test("boss experience is credited before transition clears battlefield drops", () => {
+  const w = new World();
+  const boss = w.spawn("boss");
+  const before = w.xp;
+  w.hit(boss, 1e9);
+  assert.equal(w.xp - before, boss.xp * w.player.xpFactor);
 });
