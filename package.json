@@ -1,0 +1,14 @@
+{
+  "name": "shikujin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/game/simulation.test.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "python3 -m http.server 4173 --bind 0.0.0.0"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

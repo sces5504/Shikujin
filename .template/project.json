@@ -1,11 +1,14 @@
 {
   "schema_version": 1,
-  "initialized": false,
-  "name": "",
+  "initialized": true,
+  "name": "Shikujin",
   "site_dir": "dist",
   "install": [],
-  "start": [],
-  "ready_url": "",
-  "checks": {"daily": [], "release": []},
-  "build": []
+  "start": [["python3", "-m", "http.server", "4173", "--bind", "0.0.0.0"]],
+  "ready_url": "http://127.0.0.1:4173",
+  "checks": {
+    "daily": [["node", "tests/game/simulation.test.mjs"]],
+    "release": [["node", "tests/game/browser.mjs"]]
+  },
+  "build": [["node", "scripts/build.mjs"]]
 }

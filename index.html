@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#080f1a" />
+    <meta
+      name="description"
+      content="Shikujin 識空戰姬 — 飛機彈幕、生存肉鴿與星海中的四位駕駛員。"
+    />
+    <title>Shikujin 識空戰姬</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 3 58 54 32 43 6 54Z' fill='%2374f7ed'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <canvas
+      id="battlefield"
+      aria-label="遊戲戰場，使用 WASD、方向鍵或拖曳移動"
+    ></canvas>
+    <div class="scanlines"></div>
+    <main id="hangar" class="hangar">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Shikujin 首頁"
+          ><span class="brand-icon">⋔</span
+          ><span>SHIKUJIN<small>識 空 戰 姬</small></span></a
+        >
+        <div class="top-status">
+          <span class="online-dot"></span> SYSTEM ONLINE
+          <span class="version">/ VER. 1.0</span>
+        </div>
+        <div class="currency">
+          <span>✧</span><b id="credits">0</b><small>信用點</small>
+        </div>
+        <button class="icon-button" id="settingsButton" aria-label="設定">
+          ⚙
+        </button>
+      </header>
+      <nav class="hangar-nav" aria-label="機庫功能">
+        <button id="modeButton"></button>
+        <div>
+          <button id="researchButton">⌘ 研發中樞</button
+          ><button id="achievementsButton">✦ 星海勳章</button
+          ><button id="archiveButton">▤ 情報資料庫</button>
+        </div>
+      </nav>
+      <div class="hangar-body">
+        <section class="intro">
+          <div class="eyebrow"><span></span> ROGUELITE AERIAL SURVIVAL</div>
+          <h1>穿越彈雨。<br />與她一起<span>破曉。</span></h1>
+          <p class="intro-copy">
+            無盡敵潮，千變構築。<br />駕駛你的戰機，在星海中寫下新的航跡。
+          </p>
+          <div class="record-row">
+            <div>
+              <small>最高波次</small><b id="bestWave">00<span> WAVES</span></b>
+            </div>
+            <i></i>
+            <div><small>最佳戰績</small><b id="bestScore">00000</b></div>
+          </div>
+          <div class="mission-card">
+            <span class="mission-icon">◎</span>
+            <div>
+              <small>當前作戰空域</small
+              ><strong>蒼藍星環 <span>AETHER RIFT</span></strong>
+              <p>無盡作戰 / 每 5 波遭遇首領</p>
+            </div>
+            <span class="mission-no">01</span>
+          </div>
+          <div class="controls-hint">
+            <kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
+            <p>
+              移動 · 自動射擊<br /><b>SPACE</b> 駕駛員技能 · <b>ESC</b> 暫停
+            </p>
+          </div>
+        </section>
+        <section class="showcase" aria-label="機體預覽">
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <div class="crosshair crosshair-a">+</div>
+          <div class="crosshair crosshair-b">+</div>
+          <div class="ship-coordinate">
+            FRAME / <span id="shipNumber">01</span><br />STATUS: READY
+          </div>
+          <canvas id="shipPreview" width="620" height="620"></canvas>
+          <div class="ship-caption">
+            <small id="shipRole">泛用突擊機</small>
+            <h2 id="shipName">隼式 <span>KESTREL</span></h2>
+            <p id="shipDescription"></p>
+          </div>
+        </section>
+        <aside class="loadout">
+          <div class="section-title">
+            <h2>出擊整備</h2>
+            <span>LOADOUT / 01</span>
+          </div>
+          <div class="loadout-label">
+            <span>01</span> 選擇機體 <small>AIRFRAME</small>
+          </div>
+          <div id="shipList" class="ship-list"></div>
+          <div class="stat-block" id="shipStats"></div>
+          <div class="loadout-label pilot-label">
+            <span>02</span> 搭檔駕駛員 <small>PILOT</small>
+          </div>
+          <div id="pilotList" class="pilot-list"></div>
+          <div class="pilot-detail">
+            <div class="pilot-detail-top">
+              <strong id="pilotName"></strong><span id="pilotTitle"></span>
+            </div>
+            <p id="pilotPassive"></p>
+            <div class="ability-row">
+              <span>✦</span>
+              <div>
+                <b id="pilotAbility"></b
+                ><small id="pilotSkillDescription"></small>
+              </div>
+            </div>
+          </div>
+          <button id="launch" class="launch">
+            出 擊 <span>SORTIE →</span>
+          </button>
+          <div class="launch-note">完整章節戰役 · 擊殺獲取信用點</div>
+        </aside>
+      </div>
+      <footer class="hangar-footer">
+        <span>第七軌道防衛局 <b>／</b> ORBITAL DEFENSE DIVISION</span
+        ><button id="helpButton">操作指南 <span>↗</span></button
+        ><span class="footer-right">EVERY FLIGHT IS A NEW BEGINNING.</span>
+      </footer>
+    </main>
+    <div id="hud" class="hud hidden">
+      <div class="hud-top">
+        <div class="vitals">
+          <div class="hud-callsign">
+            <b id="hudPilot"></b><span id="hudShip"></span>
+          </div>
+          <div class="health-label">
+            <span>HULL <b id="healthText"></b></span
+            ><span id="shieldText"></span>
+          </div>
+          <div class="bar health"><i id="healthFill"></i></div>
+          <div class="bar shield"><i id="shieldFill"></i></div>
+          <div class="level-row">
+            <b id="levelText">LV. 01</b>
+            <div class="bar xp"><i id="xpFill"></i></div>
+          </div>
+        </div>
+        <div class="wave-info">
+          <small id="mapText"></small><strong id="waveText">WAVE 01</strong
+          ><span id="timeText">00:00</span>
+        </div>
+        <div class="hud-right">
+          <button id="pauseButton" class="icon-button" aria-label="暫停">
+            Ⅱ</button
+          ><b id="scoreText">00000</b><span id="killsText">0 擊破</span>
+        </div>
+      </div>
+      <div id="bossHud" class="boss-hud hidden">
+        <div>
+          <span>⚠ HOSTILE SIGNATURE</span
+          ><b><span id="bossName">虛空裁決者</span></b>
+        </div>
+        <div class="bar boss"><i id="bossFill"></i></div>
+      </div>
+      <div id="waveBanner" class="wave-banner">
+        <small>INCOMING TRANSMISSION</small><strong></strong><span></span>
+      </div>
+      <div id="comms" class="comms">
+        <div class="comms-portrait portrait" id="commsPortrait"></div>
+        <div>
+          <small id="commsName"></small>
+          <p id="commsLine"></p>
+        </div>
+      </div>
+      <div id="buildIcons" class="build-icons"></div>
+      <div class="skill-wrap">
+        <span id="skillName"></span
+        ><button id="skillButton" class="skill-button" aria-label="駕駛員技能">
+          <strong>✦</strong><small id="skillCooldown">READY</small></button
+        ><small>SPACE / 點擊</small>
+      </div>
+      <button id="dashButton" class="dash-button" aria-label="閃避衝刺">
+        »<small id="dashCooldown">SHIFT</small>
+      </button>
+      <div class="touch-hint">拖曳戰場移動 · 自動瞄準</div>
+    </div>
+    <div
+      id="overlay"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="遊戲選單"
+    >
+      <div id="overlayContent"></div>
+    </div>
+    <div id="toast" role="status"></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
