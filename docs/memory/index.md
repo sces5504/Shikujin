@@ -2,7 +2,9 @@
 
 已完成並上線：https://sces5504.github.io/Shikujin/ 。repo sces5504/Shikujin，2026-10-19（Asia/Taipei）。使用者本次免 grilling，授權自主規格／提交／合併／部署，並要求完整內容而非第一里程碑原型。
 
-目前正式版 **1.7**，本機main，PR #5合併93d9a47，最終文字修正／部署來源b0f9c0c。Checks39211509802與Pages39211509798成功；只部署.artifacts/site，公開61檔SHA256逐一與stage一致，build **9988208a8d76**。34項邏輯＋五套瀏覽器／效能流程，含256項方向像素檢查。三支後補壓縮影片已實際抽樣檢視，細節與本機／CI效能分列於1.7交接。原1.6與中間工作樹數據為歷史，不代表新的測試。
+目前正式版 **1.8**，本機main，PR #6功能7928099、merge／部署來源c8591e3。Checks39217586255、Pages39217586242成功；完整release／build／stage／deploy通過，公開61檔SHA256逐一與stage一致，build **9405c712a49a**。38項邏輯、七個瀏覽器／效能流程、288項方向像素及CDP原生多指通過。最新交接：docs/handoffs/mobile-combat-impact-20261019.md。修正多指與原生手勢、提高Boss耐久／存在感、flygame參考五新構築及兩進化；保留CG與存檔ID。
+
+1.7歷史發布紀錄：**1.7**，本機main，PR #5合併93d9a47，最終文字修正／部署來源b0f9c0c。Checks39211509802與Pages39211509798成功；只部署.artifacts/site，公開61檔SHA256逐一與stage一致，build **9988208a8d76**。34項邏輯＋五套瀏覽器／效能流程，含256項方向像素檢查。三支後補壓縮影片已實際抽樣檢視，細節與本機／CI效能分列於1.7交接。原1.6與中間工作樹數據為歷史，不代表新的測試。
 
 - 另一位AI接手入口／可貼prompt：docs/handoffs/ai-takeover-20261019.md
 - 規格：docs/spec.md
@@ -11,7 +13,8 @@
 - 使用者偏好：docs/memory/owner-preferences.md
 - 決策：docs/memory/decisions.md
 - 美術：docs/art/style-guide.md、asset-contract.md
-- 最新1.7交接：docs/handoffs/arsenal-buildcraft-20261019.md
+- 最新1.8交接：docs/handoffs/mobile-combat-impact-20261019.md
+- 前版1.7交接：docs/handoffs/arsenal-buildcraft-20261019.md
 - 前版1.6交接：docs/handoffs/flight-feedback-20261019.md
 - 前版打磨交接：docs/handoffs/polish-raiden-20261019.md
 - 初版完整交接：docs/handoffs/shikujin-20261019.md

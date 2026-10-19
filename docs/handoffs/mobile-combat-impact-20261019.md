@@ -19,3 +19,13 @@ GPU火花／砲口光增加overlay預繪批次，確保在機體上方、危險�
 2026-10-19 15:38（Asia/Taipei），1e795ae之上本次dirty工作樹，完整release11命令全過113.98秒；38項邏輯（20+3+11+4）、七個瀏覽器／效能流程，288方向像素、原生多指／無重複／手勢與既有存檔／GPU恢復／續戰均過。其後補驗取消觸控及textarea仍可選取複製，目標mobile-impact-browser再次通過。模板10項、diff檢查通過。手機最終圖已檢視（Boss、星環、光束與可見機體／命中火花）。最終build/stage **9405c712a49a**。
 
 本機軟體GPU、自動解析度0.7：原壓測240敵／1233彈／749掉落，模擬p95 1.0ms、含readback繪製p95 49.0ms；新增全構築240敵／1241彈／749掉落，maxArcs12/maxStars24，模擬p95 1.6ms、繪製median30.7/p95 56.8/max70.0ms，GL error0。最長互動task81ms。回歸預算未放寬；非跨硬體60FPS承諾。
+
+## 最終整合與正式部署
+
+PR https://github.com/sces5504/Shikujin/pull/6 已合併，功能head79280998749d147c5ce215fee49ee558f1cf3dc0（PR Checks39217385673成功），merge／部署來源c8591e3a0461e3e7e33f0cb45cb37359cd4c6a10。main Checks https://github.com/sces5504/Shikujin/actions/runs/39217586255 成功；Pages https://github.com/sces5504/Shikujin/actions/runs/39217586242 完整release11命令、build／stage／upload／deploy全成功，只部署.artifacts/site。
+
+2026-10-19 15:44（Asia/Taipei）公開 https://sces5504.github.io/Shikujin/?v=1.8 ，61檔以驗證TLS的HTTPS逐一下載，SHA256全部與stage一致；build **9405c712a49a**。無新增外部runtime資源，影片／文件不發布至網站。
+
+最終main CI38邏輯、七瀏覽器／效能流程通過，含CDP移動保持＋第二指大絕／閃避、取消觸控、無重複click、雙擊／捏合、欄位可選取、Boss十組TTK／二階段、原存檔／GPU恢復／續戰、288像素方向與兩壓測。CI軟體GPU解析度0.7：原千彈模擬p95 0.8ms／含readback繪製p95 28.6ms；全構築240敵／1241彈／749掉落、maxArcs12/maxStars24，模擬p95 1.4ms，繪製median26.0/p95 34.5/max43.4ms，GL error0。沒有放寬預算／刪危險彈／停碰撞。
+
+本次四項已交付，沒有已確認未處理程式項目。手機驗證是Chromium原生多指模擬，不能當作Safari實機認證；iPhone／低階真機及長期構築平衡仍需真人回饋。後續依新的使用者任務接續，勿把本文件歷史步驟或1.7回饋重做。CG、Mio／Akari髮型與舊存檔契約保持。
