@@ -147,6 +147,13 @@ try {
       const { app } = window.__SHIKUJIN__,
         w = app.world;
       w.debugInvincible = true;
+      window.__weaponKinds = new Set();
+      const emit = w.playerBullet.bind(w);
+      w.playerBullet = (...args) => {
+        const bullet = emit(...args);
+        if (bullet) window.__weaponKinds.add(bullet.kind);
+        return bullet;
+      };
       w.spawnTimer = 1e6;
       w.waveTime = -1e6;
       for (let i = 0; i < 8; i++) {
@@ -167,7 +174,7 @@ try {
       return {
         weapon: w.ship.weapon,
         beams: w.beams.length,
-        kinds: w.bullets.map((b) => b.kind),
+        kinds: [...window.__weaponKinds],
       };
     });
     if (ship === "wraith") assert.ok(config.beams > 0);
