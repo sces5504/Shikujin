@@ -1,3 +1,5 @@
+import { updateBuilds, weaponHit } from "./builds.js";
+import { projectileType } from "../content/projectiles.js";
 import { fireMainWeapon } from "./weapons.js";
 import { compact } from "../core/pool.js";
 import { RULES, ENEMIES, MAPS } from "../content/catalog.js";
@@ -77,7 +79,8 @@ export function movement(w, dt, input) {
   p.cooldown = Math.max(0, p.cooldown - dt);
   p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   p.sinceHit += dt;
-  if (p.sinceHit > 5) p.shield = Math.min(p.maxShield, p.shield + 5 * dt);
+  if (p.sinceHit > Math.max(2, 5 - (w.upgrades.reactor || 0) * 0.6))
+    p.shield = Math.min(p.maxShield, p.shield + 5 * dt);
   w.stasis = Math.max(0, w.stasis - dt);
 }
 export function weapons(w, dt) {
@@ -120,12 +123,16 @@ export function weapons(w, dt) {
     w.blast(
       p.x,
       p.y,
-      130 + pulse * 25 + (w.evolutions.includes("singularity") ? 130 : 0),
+      295 +
+        pulse * 45 +
+        (w.upgrades.capacitor || 0) * 60 +
+        (w.evolutions.includes("singularity") ? 130 : 0),
       p.damage * (2 + pulse * 0.4),
       "#74f7ed",
     );
-    w.pulseTimer = 4;
+    w.pulseTimer = 3.2 * Math.pow(0.88, w.upgrades.capacitor || 0);
   }
+  updateBuilds(w, dt, target);
   const drones = w.upgrades.drone || 0;
   if (drones) {
     for (let i = 0; i < drones; i++) {
@@ -160,7 +167,13 @@ export function enemies(w, dt) {
     const dx = w.player.x - e.x,
       dy = w.player.y - e.y,
       d = Math.hypot(dx, dy) || 1;
-    if (slow) behaviors[e.behavior](w, e, dt, dx, dy, d);
+    if (slow) {
+      const chill =
+        e.chillUntil > w.time
+          ? 1 - (w.upgrades.frost || 0) * 0.12 * (e.kind === "boss" ? 0.5 : 1)
+          : 1;
+      behaviors[e.behavior](w, e, dt * chill, dx, dy, d);
+    }
     if (d < e.r + w.player.r) w.hurt(e.kind === "boss" ? 35 : 15);
   }
 }
@@ -170,7 +183,20 @@ export function projectiles(w, dt) {
     b.life -= frozen ? 0 : dt;
     if (b.life <= 0) continue;
     const slow = frozen ? 0 : 1;
-    if (b.kind === "missile") {
+    if (!frozen) {
+      b.age += dt;
+      const def = projectileType(b.type || b.kind);
+      if (b.enemy && def.motion === "weave") {
+        const a = b.angle + Math.sin(b.age * 4) * 0.22;
+        b.vx = Math.cos(a) * b.speed;
+        b.vy = Math.sin(a) * b.speed;
+      } else if (b.enemy && def.motion === "accelerate") {
+        const speed = b.speed * (1 + Math.min(1, b.age * 0.3));
+        b.vx = Math.cos(b.angle) * speed;
+        b.vy = Math.sin(b.angle) * speed;
+      }
+    }
+    if (projectileType(b.type || b.kind).motion === "homing") {
       let best = b.target;
       if (!best || best.hp <= 0) {
         let dist = Infinity;
@@ -232,15 +258,21 @@ export function projectiles(w, dt) {
         b.hit.add(e.id);
         if (b.enemy) w.hurt(b.damage);
         else {
-          w.hit(e, b.damage);
-          if (b.kind === "missile" || b.kind === "shell") {
-            const shell = b.kind === "shell",
-              radius = shell ? 105 + w.player.pierce * 20 : 65;
+          weaponHit(w, e, b.damage);
+          const explosion = projectileType(b.type || b.kind).explosion;
+          if (explosion) {
+            const shell = !!explosion.pierceRadius,
+              radius =
+                explosion.radius +
+                (explosion.pierceRadius || 0) * w.player.pierce +
+                (explosion.warheadRadius || 0) * (w.upgrades.warhead || 0);
             w.blast(
               b.x,
               b.y,
               radius,
-              b.damage * (shell ? 0.85 : 0.45),
+              b.damage *
+                explosion.damage *
+                (shell ? 1 : 1 + (w.upgrades.warhead || 0) * 0.25),
               "#ffc18b",
             );
             if (w.impacts.length < 24)

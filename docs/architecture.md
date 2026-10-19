@@ -67,3 +67,12 @@ content/weapons.js定義主武器描述；catalog每機weapon穩定ID；game/wea
 render/camera.js提供死區攝影機與地表座標；terrain按固定世界tile繪圖，無戰鬥時間捲動。boundary.js繪可見圍欄與量測距離。Renderer使用camera而非player作GPU／Canvas共同投影。effects.js集中可辨識的各能力演出；敵彈預繪texture在GPU最後獨立批次，與一般裝飾粒子分離。高密度只減裝飾陰影，保留所有敵機與危險彈。
 
 core/secret-code.js只識別完整密碼＋Enter，忽略表單及重複鍵；ui/debug.js保留原畫面／暫停、管理測試工具；game/debug.js純邏輯跳波與等級，正式build也提供且不用QA網址。World.result.reason區分clear/retreat/defeat；內部終止state沿用defeat以保持事件相容，UI以reason選CG及文案。存檔v1新增reason並遷移舊紀錄。
+
+## 1.7 構築與彈體入口
+
+- `content/projectiles.js`是投射物外觀、判定半徑、敵彈傷害倍率、motion與爆破資料registry。新增彈體先定義此處，發射器只傳ID／角度／速度；renderer不按機體ID分支。`type`保留精確原型，舊`kind=enemy`繼續維持陣營相容；pool每次重設type/age/speed/target。
+- `content/weapons.js`的WEAPON_TUNING集中主武器速度、傷害倍率、散布與雷射成長；`content/combat.js`宣告敵人／Boss loadout、motifs輪替與軌道轟擊排程。patterns處理發射編排，systems依motion執行擺動、加速、追蹤。
+- `content/builds.js`宣告新增強化／前置／標籤／機型說明與極限強化；`game/upgrades.js`負責有界候選抽樣、重抽及數值效果。`game/builds.js`集中武器命中附加效果、電弧、地雷、側翼、僚機火控。燃燒不遞迴觸發命中；Boss低溫效果減半。瞬態地雷最多16、電弧每次最多11段且0.18秒消失。脈衝等原系統沿用既有爆破入口。
+- 雷射`beams.points`是玩法與渲染共用線段，單束加寬／能量成長，砲口角度保存在world而非renderer。GPU彈體走可旋轉精靈而非方向不一致的點shader；敵彈仍danger前景批次，context恢復重建texture。
+- `World.continueEndless`只接受campaign clear終局一次。保留構築，wave26、map0、intermission；previousSettlement只存於單局記憶體，後續finish回傳增量並帶continuation/bondWaves，SaveStore不重算runs。v1舊檔無需更改；沒有中途續存功能。
+- 髮型參考庫見`docs/art/hairstyle-library.json`及原始參考PDF，供新角色設計查詢，不打包至網站。

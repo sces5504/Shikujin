@@ -158,7 +158,7 @@ export const EVOLUTIONS = [
   {
     id: "prism",
     name: "萬華稜鏡",
-    description: "分裂光束 3 + 相位穿透 2：額外兩道光束，傷害 +30%",
+    description: "分裂光束 3 + 相位穿透 2：依武器擴充兩級，傷害 +30%",
     needs: { multi: 3, pierce: 2 },
     color: "#bfa0ff",
     icon: "⋔",
@@ -180,3 +180,22 @@ export const EVOLUTIONS = [
     icon: "◎",
   },
 ];
+
+EVOLUTIONS.push(
+  {
+    id: "tempest",
+    name: "雷霆網路",
+    description: "連鎖電容 3 + 疾風扳機 3：電弧連鎖 +4 次。",
+    needs: { arc: 3, rate: 3 },
+    color: "#9beaff",
+    icon: "ϟ",
+  },
+  {
+    id: "thermal",
+    name: "熔核雷陣",
+    description: "熱熔彈芯 3 + 航跡雷區 3：燃燒倍增，地雷爆破半徑 +100m。",
+    needs: { burn: 3, mines: 3 },
+    color: "#ffc786",
+    icon: "✥",
+  },
+);

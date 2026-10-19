@@ -1,8 +1,14 @@
+import { ORBITAL_BARRAGE as ORBITAL } from "../content/combat.js";
 import { compact } from "../core/pool.js";
 export function startUltimate(w, kind) {
   if (kind !== "stasis") w.clearEnemyBullets();
   w.player.invuln = Math.max(2, w.player.invuln);
-  const durations = { overdrive: 6, stasis: 7, repair: 8, nova: 5 };
+  const durations = {
+    overdrive: 6,
+    stasis: 7,
+    repair: 8,
+    nova: ORBITAL.duration,
+  };
   w.ultimate = {
     kind,
     remaining: durations[kind],
@@ -16,18 +22,7 @@ export function startUltimate(w, kind) {
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.45);
     p.shield = p.maxShield;
   }
-  if (kind === "nova") {
-    for (let i = 0; i < 8; i++) {
-      const e = w.enemies[Math.floor((i * w.enemies.length) / 8)];
-      const angle = (i / 8) * Math.PI * 2;
-      w.strikes.push({
-        x: e?.x ?? w.player.x + Math.cos(angle) * 230,
-        y: e?.y ?? w.player.y + Math.sin(angle) * 230,
-        delay: 0.3 + i * 0.35,
-        r: 170,
-      });
-    }
-  }
+  if (kind === "nova") w.ultimate.fired = 0;
 }
 function segmentDistance(e, p, angle) {
   const dx = e.x - p.x,
@@ -42,6 +37,22 @@ export function updateUltimates(w, dt) {
   if (u) {
     u.remaining -= dt;
     u.tick -= dt;
+    if (u.kind === "nova" && u.tick <= 0 && u.fired < ORBITAL.count) {
+      const targets = w.enemies.filter((e) => e.hp > 0),
+        boss = targets.find((e) => e.kind === "boss"),
+        i = u.fired++,
+        e =
+          (i % 3 === 0 ? boss : null) ||
+          targets[i % Math.max(1, targets.length)],
+        a = i * 2.39996;
+      w.strikes.push({
+        x: e?.x ?? p.x + Math.cos(a) * 300,
+        y: e?.y ?? p.y + Math.sin(a) * 300,
+        delay: ORBITAL.warning,
+        r: ORBITAL.radius,
+      });
+      u.tick += ORBITAL.interval;
+    }
     if (u.kind === "overdrive")
       for (const e of w.enemies)
         if (e.hp > 0 && segmentDistance(e, p, p.angle) < e.r + 28)
@@ -76,7 +87,13 @@ export function updateUltimates(w, dt) {
     strike.delay -= dt;
     if (strike.delay <= 0 && !strike.fired) {
       strike.fired = true;
-      w.blast(strike.x, strike.y, strike.r, p.damage * 8, "#ffb6dc");
+      w.blast(
+        strike.x,
+        strike.y,
+        strike.r,
+        p.damage * ORBITAL.damage,
+        "#ffb6dc",
+      );
       if (w.impacts.length < 24)
         w.impacts.push({
           x: strike.x,

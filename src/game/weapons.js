@@ -1,3 +1,5 @@
+import { WEAPON_TUNING as TUNING } from "../content/weapons.js";
+import { weaponHit } from "./builds.js";
 // Main weapons share upgrades, but retain distinct targeting, geometry and cadence.
 export const segmentProjection = (e, x, y, angle, length, radius) => {
   const dx = e.x - x,
@@ -24,16 +26,18 @@ export const mainWeapons = {
   twin(w, target) {
     const p = w.player;
     if (!target || p.fire > 0) return;
-    const count = 1 + p.multi;
+    const t = TUNING.twin,
+      count = 1 + p.multi;
     for (let i = 0; i < count; i++) {
-      const side = (i - (count - 1) / 2) * 20;
+      const side = (i - (count - 1) / 2) * t.spacing;
       shot(
         w,
         p.x - Math.sin(p.angle) * side,
         p.y + Math.cos(p.angle) * side,
         p.angle,
-        760,
-        p.damage * 0.8,
+        t.speed,
+        p.damage * t.damage,
+        t.type,
       );
     }
     return true;
@@ -41,38 +45,100 @@ export const mainWeapons = {
   laser(w, target, dt) {
     if (!target) return;
     const p = w.player,
-      count = p.multi;
-    for (let i = 0; i < count; i++) {
-      const a = p.angle + (i - (count - 1) / 2) * 0.12;
-      w.beams.push({
-        x: p.x,
-        y: p.y,
-        angle: a,
-        length: 1000,
-        width: 9 + p.pierce * 2,
-        color: "#beaaff",
+      tuning = TUNING.laser;
+    // Retain one coherent plasma ribbon; the muzzle follows a smoothed angle.
+    w.laserAngle ??= p.angle;
+    const delta = Math.atan2(
+      Math.sin(p.angle - w.laserAngle),
+      Math.cos(p.angle - w.laserAngle),
+    );
+    w.laserAngle += delta * Math.min(1, dt * tuning.tracking);
+    const length = Math.min(
+        tuning.length,
+        Math.hypot(target.x - p.x, target.y - p.y),
+      ),
+      ex = p.x + Math.cos(p.angle) * length,
+      ey = p.y + Math.sin(p.angle) * length,
+      cx = p.x + Math.cos(w.laserAngle) * length * 0.65,
+      cy = p.y + Math.sin(w.laserAngle) * length * 0.65,
+      points = [];
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20,
+        q = 1 - t;
+      points.push({
+        x: q * q * p.x + 2 * q * t * cx + t * t * ex,
+        y: q * q * p.y + 2 * q * t * cy + t * t * ey,
       });
-      for (const e of w.enemies)
-        if (e.hp > 0 && segmentProjection(e, p.x, p.y, a, 1000, 8 + p.pierce))
-          w.hit(
+    }
+    const last = points.at(-1),
+      prev = points.at(-2),
+      tangent = Math.atan2(last.y - prev.y, last.x - prev.x);
+    if (length < tuning.length)
+      points.push({
+        x: last.x + Math.cos(tangent) * (tuning.length - length),
+        y: last.y + Math.sin(tangent) * (tuning.length - length),
+      });
+    const width =
+      tuning.width +
+      (p.multi - 1) * tuning.multiWidth +
+      p.pierce * tuning.pierceWidth;
+    w.beams.push({
+      x: p.x,
+      y: p.y,
+      angle: w.laserAngle,
+      length,
+      width,
+      color: "#beaaff",
+      points,
+    });
+    for (const e of w.enemies) {
+      if (e.hp <= 0) continue;
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1],
+          b = points[i],
+          dx = b.x - a.x,
+          dy = b.y - a.y,
+          len = dx * dx + dy * dy,
+          t = len
+            ? Math.max(
+                0,
+                Math.min(1, ((e.x - a.x) * dx + (e.y - a.y) * dy) / len),
+              )
+            : 0;
+        if (
+          Math.hypot(e.x - a.x - dx * t, e.y - a.y - dy * t) <
+          e.r + width / 2
+        ) {
+          weaponHit(
+            w,
             e,
-            (p.damage / p.interval) * dt * (p.overdrive > 0 ? 2 : 1) * 1.3,
+            (p.damage / p.interval) *
+              dt *
+              (p.overdrive > 0 ? 2 : 1) *
+              tuning.damage *
+              (1 +
+                (p.multi - 1) * tuning.multiDamage +
+                p.pierce * tuning.pierceDamage),
           );
+          break;
+        }
+      }
     }
     if (p.fire <= 0) return true;
   },
   cannon(w, target) {
     const p = w.player;
     if (!target || p.fire > 0) return;
+    const t = TUNING.cannon;
     for (let i = 0; i < p.multi; i++)
       shot(
         w,
         p.x,
         p.y,
-        p.angle + (i - (p.multi - 1) / 2) * 0.19,
-        440,
-        p.damage * 1.7,
-        "shell",
+        p.angle + (i - (p.multi - 1) / 2) * t.spacing,
+        t.speed,
+        p.damage * t.damage,
+        t.type,
         0,
       );
     return true;
@@ -80,25 +146,35 @@ export const mainWeapons = {
   spread(w, target) {
     const p = w.player;
     if (!target || p.fire > 0) return;
-    const count = 4 + p.multi;
+    const t = TUNING.spread,
+      count = t.baseCount + p.multi;
     for (let i = 0; i < count; i++)
       shot(
         w,
         p.x,
         p.y,
-        p.angle + (i - (count - 1) / 2) * 0.17,
-        600,
-        p.damage * 0.62,
-        "spread",
+        p.angle + (i - (count - 1) / 2) * t.spacing,
+        t.speed,
+        p.damage * t.damage,
+        t.type,
       );
     return true;
   },
   carrier(w, target) {
     const p = w.player;
     if (!target || p.fire > 0) return;
+    const t = TUNING.carrier;
     for (const pos of escortPositions(w)) {
       const a = Math.atan2(target.y - pos.y, target.x - pos.x);
-      shot(w, pos.x, pos.y, a, 700, p.damage * 0.7, "escort");
+      shot(
+        w,
+        pos.x,
+        pos.y,
+        a,
+        t.speed,
+        p.damage * t.damage * (1 + (p.multi - 1) * t.multiDamage),
+        t.type,
+      );
     }
     return true;
   },

@@ -1,3 +1,5 @@
+import { ENEMY_LOADOUTS, BOSS_LOADOUTS } from "../content/combat.js";
+import { projectileType } from "../content/projectiles.js";
 import { updateUltimates } from "./ultimates.js";
 import { ObjectPool } from "../core/pool.js";
 import { BOSSES } from "../content/encounters.js";
@@ -74,6 +76,8 @@ export class World {
     this.candidates = [];
     this.enemyBulletCount = 0;
     this.playerBulletCount = 0;
+    this.rerolls = 3;
+    this.mines = [];
     this.strikes = [];
     this.beams = [];
     this.impacts = [];
@@ -139,8 +143,10 @@ export class World {
     const hp = (bossDef?.hp || def.hp) * scale * this.difficulty.hp;
     const e = {
       ...def,
+      projectile: ENEMY_LOADOUTS[kind] || "enemy",
       ...(bossDef
         ? {
+            ...BOSS_LOADOUTS[bossDef.id],
             bossId: bossDef.id,
             bossName: bossDef.name,
             bossSprite: bossDef.sprite,
@@ -170,12 +176,13 @@ export class World {
     this.enemies.push(e);
     return e;
   }
-  playerBullet(x, y, angle, speed, damage, pierce, kind) {
+  playerBullet(x, y, angle, speed, damage, pierce, kind = "shot") {
     if (
       this.playerBulletCount >= RULES.maxPlayerBullets ||
       this.bullets.length >= RULES.maxBullets
     )
       return;
+    const def = projectileType(kind);
     const crit = this.rng.next() < this.player.crit,
       b = this.bulletPool.acquire();
     b.hit.clear();
@@ -192,7 +199,9 @@ export class World {
       kind,
       enemy: false,
       crit,
-      r: kind === "shell" ? 9 : kind === "missile" ? 6 : 4,
+      r: def.radius,
+      type: kind,
+      age: 0,
       life: 2,
       grazed: false,
       target: null,
@@ -201,7 +210,8 @@ export class World {
     this.playerBulletCount++;
     return b;
   }
-  enemyBullet(e, angle, speed) {
+  enemyBullet(e, angle, speed, type = e.projectile || "enemy") {
+    const def = projectileType(type);
     if (
       this.enemyBulletCount >= RULES.maxEnemyBullets ||
       this.bullets.length >= RULES.maxBullets
@@ -216,12 +226,15 @@ export class World {
       angle,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      damage: 12 + this.wave * 0.7,
+      damage: (12 + this.wave * 0.7) * def.damage,
+      type,
+      speed,
+      age: 0,
       color: e.color,
       pierce: 0,
       kind: "enemy",
       enemy: true,
-      r: 5,
+      r: def.radius,
       life: 7,
       grazed: false,
       crit: false,
@@ -229,6 +242,7 @@ export class World {
     });
     this.bullets.push(b);
     this.enemyBulletCount++;
+    return b;
   }
   clearEnemyBullets() {
     for (const b of this.bullets) if (b.enemy) b.life = 0;
@@ -349,6 +363,49 @@ export class World {
     this.options = choices(this);
     this.events.emit("upgrade", this.options);
   }
+  reroll() {
+    if (this.state !== "upgrade" || this.rerolls <= 0) return false;
+    this.rerolls--;
+    this.options = choices(
+      this,
+      this.options.map((u) => u.id),
+    );
+    this.events.emit("upgrade", this.options);
+    return true;
+  }
+  continueEndless() {
+    if (
+      this.state !== "defeat" ||
+      !this.result?.clear ||
+      this.mode !== "campaign"
+    )
+      return false;
+    this.previousSettlement = { ...this.result };
+    this.mode = "endless";
+    this.wave++;
+    this.waveTime = 0;
+    this.mapIndex = 0;
+    this.map = MAPS[0];
+    this.bossArena = null;
+    this.enemies = [];
+    this.resetProjectiles();
+    this.drops = [];
+    this.mines = [];
+    this.strikes = [];
+    this.ultimate = null;
+    this.stasis = 0;
+    this.spawnTimer = 1;
+    this.player.hp = this.player.maxHp;
+    this.player.shield = this.player.maxShield;
+    this.player.invuln = 2;
+    this.settled = false;
+    this.result = null;
+    this.state = "intermission";
+    this.events.emit("map", this.map);
+    this.events.emit("wave", this.wave);
+    this.events.emit("intermission", this.map);
+    return true;
+  }
   choose(id) {
     if (this.state !== "upgrade" || !this.options.some((u) => u.id === id))
       return false;
@@ -428,10 +485,18 @@ export class World {
       reward: Math.floor(
         (Math.max(15, Math.floor(this.score / 35) + this.wave * 8) +
           this.bonusCredits +
-          (clear ? 350 : 0)) *
+          (clear || this.previousSettlement ? 350 : 0)) *
           this.rewardFactor,
       ),
     };
+    if (this.previousSettlement) {
+      const prev = this.previousSettlement;
+      this.result.continuation = true;
+      this.result.bondWaves = this.wave - prev.wave;
+      this.result.kills = Math.max(0, this.kills - prev.kills);
+      this.result.bossKills = Math.max(0, this.bossKills - prev.bossKills);
+      this.result.reward = Math.max(0, this.result.reward - prev.reward);
+    }
     this.events.emit("defeat", this.result);
   }
 }

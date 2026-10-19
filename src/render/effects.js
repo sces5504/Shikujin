@@ -18,6 +18,35 @@ function star(c, x, y, r, color) {
   c.stroke();
 }
 export function energyBeam(c, b, time) {
+  if (b.points) {
+    c.save();
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    const path = () => {
+      c.beginPath();
+      b.points.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)));
+    };
+    for (const [scale, color] of [
+      [2.6, b.color + "20"],
+      [1.5, b.color + "55"],
+      [0.72, b.color],
+      [0.23, "#fffaf1"],
+    ]) {
+      c.lineWidth = b.width * scale;
+      c.strokeStyle = color;
+      path();
+      c.stroke();
+    }
+    for (let i = 0; i < 4; i++) {
+      const index = Math.floor((time * 18 + i * 5) % 20),
+        p = b.points[index];
+      star(c, p.x, p.y, b.width * 0.4, "#fffaff99");
+    }
+    const end = b.points.at(-1);
+    star(c, end.x, end.y, b.width * 1.1, "#fff5dc");
+    c.restore();
+    return;
+  }
   c.save();
   c.translate(b.x, b.y);
   c.rotate(b.angle);
@@ -251,6 +280,11 @@ function impact(c, ex, time) {
 export function combatEffects(c, w) {
   c.save();
   c.globalCompositeOperation = "lighter";
+  for (const b of w.arcEffects || []) {
+    c.globalAlpha = b.life / 0.18;
+    energyBeam(c, b, w.time);
+  }
+  c.globalAlpha = 1;
   for (const b of w.beams) energyBeam(c, b, w.time);
   const u = w.ultimate,
     p = w.player;

@@ -25,6 +25,11 @@
         "node",
         "--test",
         "tests/game/feedback.test.mjs"
+      ],
+      [
+        "node",
+        "--test",
+        "tests/game/arsenal.test.mjs"
       ]
     ],
     "release": [
@@ -43,6 +48,10 @@
       [
         "node",
         "tests/game/feedback-browser.mjs"
+      ],
+      [
+        "node",
+        "tests/game/arsenal-browser.mjs"
       ]
     ]
   },

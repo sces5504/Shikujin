@@ -2,7 +2,7 @@ export const BOSSES = [
   {
     id: "arbiter",
     sprite: 0,
-    arenaRadius: 700,
+    arenaRadius: 820,
     name: "虛空裁決者",
     en: "VOID ARBITER",
     color: "#ff789f",
@@ -14,7 +14,7 @@ export const BOSSES = [
   {
     id: "phoenix",
     sprite: 1,
-    arenaRadius: 700,
+    arenaRadius: 820,
     name: "赤燼不死鳥",
     en: "CINDER PHOENIX",
     color: "#ffb36e",
@@ -26,7 +26,7 @@ export const BOSSES = [
   {
     id: "leviathan",
     sprite: 2,
-    arenaRadius: 700,
+    arenaRadius: 820,
     name: "深淵利維坦",
     en: "ABYSS LEVIATHAN",
     color: "#ba9aff",
@@ -38,7 +38,7 @@ export const BOSSES = [
   {
     id: "oracle",
     sprite: 3,
-    arenaRadius: 700,
+    arenaRadius: 820,
     name: "極光神諭",
     en: "AURORA ORACLE",
     color: "#a8f3d4",
@@ -50,7 +50,7 @@ export const BOSSES = [
   {
     id: "eclipse",
     sprite: 4,
-    arenaRadius: 700,
+    arenaRadius: 820,
     name: "終焉日蝕",
     en: "TOTAL ECLIPSE",
     color: "#ffe1a4",

@@ -14,3 +14,5 @@
 
 可用 `python3 scripts/handoff.py capture <task-id>` 取得非秘密的 branch/commit/修改路徑快照。記錄測試時是否有未提交內容，不宣稱只測了HEAD。
 
+
+1.7新增`tests/game/arsenal.test.mjs`（前置、重抽、極限強化、彎曲雷射幾何、投射物motion／pool重設、構築聯動／2分鐘全構築、24次軌道轟擊、Boss輪替、戰役續無盡增量結算）與`arsenal-browser.mjs`（桌面手機升級／續戰／存檔／玩家受擊可見，以及每種長形彈8角度×2後端×2viewport共256項像素協方差方向驗證）。納入daily/release，不只比較傳入角度。

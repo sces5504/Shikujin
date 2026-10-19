@@ -1,3 +1,4 @@
+import { projectileType } from "../content/projectiles.js";
 const surface = (w, h = w) => {
   const c = document.createElement("canvas");
   c.width = w;
@@ -50,8 +51,8 @@ export class RenderCache {
         const t = tile.getContext("2d");
         t.clearRect(0, 0, size, size);
         for (const [r, color] of [
-          [4, "#160e24"],
-          [2, "#ff87ae"],
+          [3, "#08151e"],
+          [1, "#bdc9d477"],
         ]) {
           tc.fillStyle = color;
           tc.fillRect(0, 0, size, size);
@@ -106,28 +107,77 @@ export class RenderCache {
     return this.sprites.get(`${group}:${index}`);
   }
   enemyBullet(frozen = false) {
-    const key = frozen ? "frozen-bullet" : "hostile-bullet";
+    return this.projectile("enemy", true, frozen);
+  }
+  projectile(id, hostile = false, frozen = false) {
+    const key = `projectile:${id}:${hostile}:${frozen}`;
     if (this.sprites.has(key)) return this.sprites.get(key);
-    const cv = surface(40),
+    const def = projectileType(id),
+      cv = surface(64),
       c = cv.getContext("2d");
-    cv.danger = true;
-    c.fillStyle = "#180b29";
-    c.beginPath();
-    c.arc(20, 20, 18, 0, Math.PI * 2);
+    cv.danger = hostile;
+    c.translate(32, 32);
+    const path = () => {
+      c.beginPath();
+      if (def.shape === "orb") c.arc(0, 0, 17, 0, Math.PI * 2);
+      else if (def.shape === "rice") {
+        c.moveTo(24, 0);
+        c.quadraticCurveTo(0, -14, -22, 0);
+        c.quadraticCurveTo(0, 14, 24, 0);
+      } else if (def.shape === "missile") {
+        c.moveTo(25, 0);
+        c.lineTo(7, -7);
+        c.lineTo(-18, -6);
+        c.lineTo(-25, -12);
+        c.lineTo(-21, 0);
+        c.lineTo(-25, 12);
+        c.lineTo(-18, 6);
+        c.lineTo(7, 7);
+      } else if (def.shape === "shell") {
+        c.moveTo(23, 0);
+        c.lineTo(10, -9);
+        c.lineTo(-20, -7);
+        c.lineTo(-24, 0);
+        c.lineTo(-20, 7);
+        c.lineTo(10, 9);
+      } else {
+        c.moveTo(27, 0);
+        c.lineTo(5, -5);
+        c.lineTo(-25, -3);
+        c.lineTo(-29, 0);
+        c.lineTo(-25, 3);
+        c.lineTo(5, 5);
+      }
+      c.closePath();
+    };
+    c.shadowColor = def.color;
+    c.shadowBlur = 9;
+    path();
+    c.fillStyle = def.color;
     c.fill();
-    c.fillStyle = "#ff3297";
-    c.beginPath();
-    c.arc(20, 20, 13.5, 0, Math.PI * 2);
+    c.shadowBlur = 0;
+    path();
+    c.strokeStyle = "#091321";
+    c.lineWidth = 5;
+    c.stroke();
+    const g = c.createLinearGradient(0, -16, 0, 16);
+    g.addColorStop(0, def.color);
+    g.addColorStop(0.4, def.core);
+    g.addColorStop(0.55, def.color);
+    g.addColorStop(1, def.color + "88");
+    c.fillStyle = g;
     c.fill();
-    c.fillStyle = "#fff5fd";
+    c.strokeStyle = def.core;
+    c.lineWidth = 2;
     c.beginPath();
-    c.arc(20, 20, 8, 0, Math.PI * 2);
-    c.fill();
+    c.moveTo(def.shape === "orb" ? -7 : -15, -1);
+    c.lineTo(def.shape === "orb" ? 7 : 16, -1);
+    c.stroke();
     if (frozen) {
-      c.strokeStyle = "#c1b5ff";
+      c.strokeStyle = "#d5c4ff";
       c.lineWidth = 2;
       c.beginPath();
-      c.arc(20, 20, 16.5, 0, Math.PI * 2);
+      c.arc(0, 0, 24, 0, Math.PI * 2);
       c.stroke();
     }
     this.sprites.set(key, cv);

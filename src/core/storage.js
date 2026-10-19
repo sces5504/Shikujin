@@ -174,7 +174,7 @@ export class SaveStore {
     this.data.credits += result.reward;
     this.data.bestWave = Math.max(this.data.bestWave, result.wave);
     this.data.bestScore = Math.max(this.data.bestScore, result.score);
-    this.data.runs++;
+    if (!result.continuation) this.data.runs++;
     this.data.totalKills += result.kills || 0;
     this.data.bossKills += result.bossKills || 0;
     if (result.clear) this.data.clears++;
@@ -182,7 +182,7 @@ export class SaveStore {
       this.data.bond[result.pilot] =
         (this.data.bond[result.pilot] || 0) +
         Math.floor((result.kills || 0) / 5) +
-        result.wave * 4;
+        (result.bondWaves ?? result.wave) * 4;
     if (result.pilot) {
       const a = affectionRecord(this.data, result.pilot);
       a.points = Math.min(

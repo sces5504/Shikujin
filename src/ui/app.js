@@ -319,9 +319,10 @@ export class App {
     this.audio.tone(900, 0.3);
     this.input.clear();
     this.modal(
-      `<div class="modal-eyebrow">NEURAL LINK ESTABLISHED</div><h2 class="modal-title">突破極限</h2><p class="modal-subtitle">等級 ${pad(w.level)} · 選擇一項強化，定義你的戰鬥風格。</p><div class="upgrade-grid">${w.options.map((u, i) => `<button class="upgrade-card ${u.rarity}" data-upgrade="${u.id}"><div class="rarity">${u.rarity === "rare" ? "RARE AUGMENT" : "TACTICAL AUGMENT"}</div><span class="upgrade-level">${i + 1} / LV.${(w.upgrades[u.id] || 0) + 1}</span><div class="upgrade-icon">${u.icon}</div><h3>${u.name}</h3><span class="upgrade-en">${u.en}</span><p>${u.description}</p></button>`).join("")}</div><div class="key-hint">點選強化 / 按 1、2、3 選擇 · 戰鬥已暫停</div>`,
+      `<div class="modal-eyebrow">NEURAL LINK ESTABLISHED</div><h2 class="modal-title">突破極限</h2><p class="modal-subtitle">等級 ${pad(w.level)} · 選擇一項強化，定義你的戰鬥風格。</p><div class="upgrade-grid">${w.options.map((u, i) => `<button class="upgrade-card ${u.rarity}" data-upgrade="${u.id}"><div class="rarity">${u.rarity === "rare" ? "RARE AUGMENT" : "TACTICAL AUGMENT"}</div><span class="upgrade-level">${i + 1} / LV.${(w.upgrades[u.id] || 0) + 1}</span><div class="upgrade-icon">${u.icon}</div><h3>${u.name}</h3><span class="upgrade-en">${u.en}</span><p>${u.description}</p><small>${(u.tags || []).join(" / ")}</small>${u.route ? `<p class="upgrade-route">${u.route}</p>` : ""}</button>`).join("")}</div><div class="modal-actions"><button id="rerollUpgrade" class="secondary-button" ${w.rerolls <= 0 ? "disabled" : ""}>重新解析 · 剩餘 ${w.rerolls} 次</button></div><div class="key-hint">點選強化 / 按 1、2、3 選擇 · 戰鬥已暫停</div>`,
       "upgrade",
     );
+    $("rerollUpgrade").onclick = () => w.reroll();
     document
       .querySelectorAll("[data-upgrade]")
       .forEach((el) => (el.onclick = () => this.choose(el.dataset.upgrade)));
@@ -471,9 +472,11 @@ export class App {
     const retreat = result.reason === "retreat";
     const damaged = !result.clear && !retreat;
     this.modal(
-      `<div class="result-layout"><div class="result-art portrait ${damaged ? "damaged" : ""}" style="${portraitStyle(w.pilot, damaged)}"></div><div class="result-data"><div class="modal-eyebrow" style="color:#ff96ac">${result.clear ? "MISSION COMPLETE / DAWN RISING" : retreat ? "MISSION DEBRIEF / SAFE RETURN" : "SIGNAL LOST / RETURN TO BASE"}</div><h2 class="modal-title">${result.clear ? "破曉之時，與你同在。" : retreat ? "平安返航，整備再出發。" : "航跡未完，待續。"}</h2><p class="result-quote">${w.pilot.name}：「${result.clear ? "星海重歸寧靜。謝謝你，陪我飛到了最後。下一段航程，也一起吧。" : retreat ? "作戰資料已帶回。休息一下，再一起出擊吧。" : w.pilot.defeat}」</p><div class="result-stats"><div><small>抵達波次</small><b>${pad(result.wave)}</b></div><div><small>作戰分數</small><b>${pad(result.score, 5)}</b></div><div><small>敵機擊破</small><b>${result.kills}</b></div><div><small>生存時間</small><b>${pad(result.time / 60)}:${pad(result.time % 60)}</b></div></div><div class="reward"><span>✧ 獲得信用點</span><b>+ ${result.reward}</b></div><div class="modal-actions"><button id="retry" class="primary-button">再次出擊</button><button id="returnHangar" class="secondary-button">返回機庫 · 更換搭檔</button></div></div></div>`,
+      `<div class="result-layout"><div class="result-art portrait ${damaged ? "damaged" : ""}" style="${portraitStyle(w.pilot, damaged)}"></div><div class="result-data"><div class="modal-eyebrow" style="color:#ff96ac">${result.clear ? "MISSION COMPLETE / DAWN RISING" : retreat ? "MISSION DEBRIEF / SAFE RETURN" : "SIGNAL LOST / RETURN TO BASE"}</div><h2 class="modal-title">${result.clear ? "破曉之時，與你同在。" : retreat ? "平安返航，整備再出發。" : "航跡未完，待續。"}</h2><p class="result-quote">${w.pilot.name}：「${result.clear ? "星海重歸寧靜。謝謝你，陪我飛到了最後。下一段航程，也一起吧。" : retreat ? "作戰資料已帶回。休息一下，再一起出擊吧。" : w.pilot.defeat}」</p><div class="result-stats"><div><small>抵達波次</small><b>${pad(result.wave)}</b></div><div><small>作戰分數</small><b>${pad(result.score, 5)}</b></div><div><small>敵機擊破</small><b>${result.kills}</b></div><div><small>生存時間</small><b>${pad(result.time / 60)}:${pad(result.time % 60)}</b></div></div><div class="reward"><span>✧ 獲得信用點</span><b>+ ${result.reward}</b></div><div class="modal-actions">${result.clear && w.mode === "campaign" ? `<button id="continueEndless" class="primary-button">繼續遠征 · 無盡第 2 輪</button>` : ""}<button id="retry" class="primary-button">再次出擊</button><button id="returnHangar" class="secondary-button">返回機庫 · 更換搭檔</button></div></div></div>`,
       "defeat",
     );
+    if ($("continueEndless"))
+      $("continueEndless").onclick = () => w.continueEndless();
     $("retry").onclick = () => this.launch();
     $("returnHangar").onclick = () => this.hangar();
   }
