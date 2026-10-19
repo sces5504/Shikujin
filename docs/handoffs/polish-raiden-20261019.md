@@ -27,3 +27,11 @@
 2026-10-19 00:50:05 UTC，d86821f之上dirty工作樹（全部本次修改），release四個命令全部通過，65.59秒。17純模擬含10分鐘連續無盡、桌面／手機與built子路徑、互動／畫廊／四大絕／GPU loss恢復、密度壓測。最新軟體GPU報告：自動解析度0.7，模擬median0.3／p950.6ms；繪製及readback median24.6／p9548.7／max59.5ms。240敵／初始1000彈／750掉落（最後999／749），GL error0；4秒互動壓力測最長task121ms、池建立1000。不是所有硬體60FPS保證。
 
 模板10項測試通過、build revision d4de387bb15f、stage及diff whitespace通過。移除未使用terrain圖集，assets7.5MB；五背景按需載入。更新基準畫面及美術／架構／規格。下一步提交、PR、CI、合併、Pages驗證，勿停在本地。
+
+## 已整合與上線
+
+PR https://github.com/sces5504/Shikujin/pull/3 已合併；功能bae7847，merge406d6aa61e392d3e5230f7386f8db07a33a3e4d7。main Checks run39182714718通過，Pages release run39182714735的完整release／build／stage／deploy皆成功。CI實際軟體GPU自動解析度0.85：模擬p950.5ms、含readback繪製median22.5／p9527.1／max28.8ms，GL error0。與本機0.7數據分列，不能當同解析度速度比。
+
+正式網址 https://sces5504.github.io/Shikujin/?v=1.5 。公開49個網站檔案經TLS驗證curl下載後，SHA256逐一與.artifacts/site相同，沒有缺檔或舊圖混用。build revision d4de387bb15f。正式網址瀏覽器直連受既有代理CA限制，沿用安全的HTTPS逐檔驗證與CI／本地Chromium，未改全域信任或停用驗證。PR附件工具呼叫逾時，未阻擋GitHub正常整合。
+
+本次工作完成；後續根據真人實機回饋調整低階裝置與平衡，不必重做此輪。保留既有v1存檔相容及四人CG家族；新增角色先遵守最新美術契約。
