@@ -15,6 +15,7 @@ export const PROJECTILES = {
   escort: type("僚機脈衝彈", "lance", "#ffe09b", 30, 4),
   shell: type("高爆穿甲砲", "shell", "#ffbb64", 38, 9),
   missile: type("追星導彈", "missile", "#ffdb91", 34, 6, 1, "homing"),
+  star: type("環星晶彈", "rice", "#b4f8ff", 34, 4),
   enemy: type("環形能量彈", "orb", "#ff6dba", 24, 5),
   needle: type("高速針彈", "lance", "#ffad65", 30, 4, 0.85),
   petal: type("擺動晶彈", "rice", "#b59aff", 28, 5, 1, "weave"),

@@ -170,13 +170,18 @@ export class GPULayer {
     g.enableVertexAttribArray(i);
     g.vertexAttribPointer(i, size, g.FLOAT, false, stride, offset);
   }
-  drawSprites(front) {
+  drawSprites(front, overlay = false) {
     const g = this.gl;
     g.useProgram(this.spriteProgram);
     this.uniforms(this.spriteProgram);
     g.blendFunc(g.SRC_ALPHA, g.ONE_MINUS_SRC_ALPHA);
     for (const [image, group] of this.groups) {
-      if (!group.count || !!image.danger !== front) continue;
+      if (
+        !group.count ||
+        !!image.danger !== front ||
+        (!front && !!image.overlay !== overlay)
+      )
+        continue;
       let texture = this.textures.get(image);
       if (!texture) {
         texture = g.createTexture();
@@ -216,6 +221,7 @@ export class GPULayer {
     this.attribute(this.pointProgram, "aPoint", 4, 32, 0);
     this.attribute(this.pointProgram, "aStyle", 4, 32, 16);
     g.drawArrays(g.POINTS, 0, this.pointCount);
+    this.drawSprites(false, true);
     // Cached danger cores render above decoration with ordinary alpha blending.
     this.drawSprites(true);
     // A minimal dedicated shader keeps danger cores cheap even on software GPUs.

@@ -1,3 +1,16 @@
+// Each combat button accepts any pointer independently of the movement pointer.
+export function bindCombatAction(button, action) {
+  button.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || button.disabled) return;
+    e.preventDefault();
+    action();
+  });
+  button.addEventListener("click", (e) => {
+    e.preventDefault();
+    // Pointer activation was handled above; detail=0 preserves keyboard/AT activation.
+    if (e.detail === 0 && !button.disabled) action();
+  });
+}
 export class Input {
   constructor(canvas, onSkill) {
     this.keys = new Set();
@@ -22,12 +35,14 @@ export class Input {
     window.addEventListener("blur", () => this.clear());
     canvas.addEventListener("pointerdown", (e) => {
       if (!this.active || this.pointer) return;
+      e.preventDefault();
       canvas.setPointerCapture(e.pointerId);
       this.pointer = { id: e.pointerId, x: e.clientX, y: e.clientY };
       this.vector = { x: 0, y: 0 };
     });
     canvas.addEventListener("pointermove", (e) => {
       if (this.pointer?.id !== e.pointerId) return;
+      e.preventDefault();
       const x = e.clientX - this.pointer.x,
         y = e.clientY - this.pointer.y;
       const d = Math.hypot(x, y),

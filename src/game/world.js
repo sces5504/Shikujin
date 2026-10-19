@@ -1,3 +1,4 @@
+import { dashBuild, shieldBreakBuild, killBuild } from "./builds.js";
 import { ENEMY_LOADOUTS, BOSS_LOADOUTS } from "../content/combat.js";
 import { projectileType } from "../content/projectiles.js";
 import { updateUltimates } from "./ultimates.js";
@@ -257,6 +258,22 @@ export class World {
   hit(e, damage) {
     if (e.hp <= 0) return;
     e.hp -= damage;
+    if (
+      damage > 0 &&
+      this.time >= (e.nextImpact || 0) &&
+      this.impacts.length < 24
+    ) {
+      e.nextImpact = this.time + 0.09;
+      this.impacts.push({
+        x: e.x,
+        y: e.y,
+        r: e.kind === "boss" ? 32 : 18,
+        kind: "hit",
+        angle: this.player.angle,
+        life: 0.16,
+        maxLife: 0.16,
+      });
+    }
     e.flash = 0.08;
     if (
       this.time - (e.lastNumber || -1) > 0.12 &&
@@ -272,6 +289,7 @@ export class World {
       });
     }
     if (e.hp <= 0) {
+      killBuild(this, e);
       this.kills++;
       this.combo++;
       this.comboTime = 3.5;
@@ -315,6 +333,7 @@ export class World {
     damage *= this.difficulty.damage;
     const absorbed = Math.min(p.shield, damage);
     p.shield -= absorbed;
+    if (absorbed > 0 && p.shield === 0) shieldBreakBuild(this);
     p.hp = Math.max(0, p.hp - (damage - absorbed));
     p.invuln = 0.8;
     p.sinceHit = 0;
@@ -448,6 +467,7 @@ export class World {
       ? { x: input.x / len, y: input.y / len }
       : { x: Math.cos(p.angle), y: Math.sin(p.angle) };
     this.burst(p.x, p.y, this.ship.color, 12);
+    dashBuild(this);
     this.events.emit("dash", {});
     return true;
   }

@@ -291,7 +291,25 @@ export class Renderer {
         group = boss ? "bosses" : "enemycraft",
         index = boss ? e.bossSprite || 0 : Math.max(0, kinds.indexOf(e.kind)),
         sprite = this.cache.sprite(group, index),
-        size = e.r * (boss ? 3.85 : 4);
+        size = e.r * (boss ? 4.6 : 4);
+      if (boss) {
+        c.save();
+        c.translate(e.x, e.y);
+        c.rotate(angle);
+        for (const side of [-1, 1]) {
+          const size = e.enraged ? 40 : 30;
+          const glow = this.cache.glow(e.color);
+          c.globalAlpha = 0.55 + Math.sin(w.time * 5) * 0.12;
+          c.drawImage(
+            glow,
+            side * e.r * 0.8 - size / 2,
+            e.r * 0.6 - size / 2,
+            size,
+            size,
+          );
+        }
+        c.restore();
+      }
       if (e.telegraph > 0) {
         c.strokeStyle = e.color + "99";
         c.lineWidth = 1;
@@ -405,12 +423,32 @@ export class Renderer {
       c.stroke();
     }
     c.globalAlpha = 1;
-    combatEffects(c, w);
+    combatEffects(c, w, this.fx.available);
+    if (this.fx.available)
+      for (const ex of w.impacts)
+        if (ex.kind === "hit")
+          this.fx.sprite(
+            this.cache.hitSpark(),
+            ex.x,
+            ex.y,
+            ex.r * 2.4,
+            ex.angle,
+            ex.life / ex.maxLife,
+          );
     c.globalCompositeOperation = "source-over";
     for (const n of w.damageNumbers || []) {
       if (!visible(n.x, n.y, 40)) continue;
       c.globalAlpha = Math.min(1, n.life * 3);
       c.drawImage(this.cache.number(n.value), n.x - 34, n.y - 12);
+    }
+    if (w.muzzleUntil > w.time) {
+      const glow = this.cache.overlayGlow(w.ship.color),
+        size = 32,
+        x = p.x + Math.cos(p.angle) * 40,
+        y = p.y + Math.sin(p.angle) * 40;
+      c.globalAlpha = 0.8;
+      if (this.fx.available) this.fx.sprite(glow, x, y, size, 0, 0.8);
+      else c.drawImage(glow, x - size / 2, y - size / 2, size, size);
     }
     c.globalAlpha = 1;
     if (w.ship.weapon === "carrier")

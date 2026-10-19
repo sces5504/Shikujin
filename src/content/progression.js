@@ -199,3 +199,22 @@ EVOLUTIONS.push(
     icon: "✥",
   },
 );
+
+EVOLUTIONS.push(
+  {
+    id: "meteor",
+    name: "流星火網",
+    description: "環星彈幕3＋衝刺彈倉2：環星彈穿透，衝刺星彈額外8發。",
+    needs: { starburst: 3, dashburst: 2 },
+    color: "#b4f8ff",
+    icon: "✺",
+  },
+  {
+    id: "aegis",
+    name: "不屈壁壘",
+    description: "臨界反應2＋護盾迴路3：破盾反擊傷害倍增。",
+    needs: { volatile: 2, reactor: 3 },
+    color: "#a9f7ed",
+    icon: "◇",
+  },
+);

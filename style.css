@@ -3261,3 +3261,27 @@ h1 span {
     line-height: 1.45;
   }
 }
+
+/* Native gestures must not steal a held movement pointer or a second-finger action. */
+html,
+body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+#battlefield,
+.hud,
+.hud button {
+  touch-action: none;
+}
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
