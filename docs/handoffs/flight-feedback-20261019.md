@@ -29,3 +29,9 @@
 ## CI驗證時序修正
 
 PR #4整合為1659feb（功能5d2fc15）。main第一次Pages run39188284809中，20＋3單元、原瀏覽器、大絕／GPU、效能皆通過；效能在1.0解析度模擬p950.4ms、繪製p9524.8ms。最後feedback-browser的Oracle檢查失敗：原測試在600ms加截圖之後才讀取當前存活彈陣列，較快CI上導彈已命中消失。改為從建立World開始記錄實際發射的種類，驗證僚機及導彈確實發射，不依某個截圖時間仍有哪顆彈存活。不是放寬武器功能驗證；另有純模擬實際碰撞／形狀測試。修正後重跑目標瀏覽器及main完整Pages。
+
+## 完成／正式部署
+
+測試時序修正62e347a8a4e4b922f80a0d8d110ff3f3f8f0c503已推main；target feedback-browser先本機通過。main Checks39188631070、Pages release39188631121完整六命令／build／stage／deploy皆成功，未跳過或放寬任何必要檢查。最終CI軟體GPU自動解析度0.7、GL error0：模擬p950.5ms；含readback繪製median21.1／p9522.9／max25.3ms。不同CI主機負載及解析度分列，不能宣稱跨硬體60FPS保證。
+
+公開 https://sces5504.github.io/Shikujin/?v=1.6 ，57個網站檔案逐一TLS驗證下載、SHA256與.artifacts/site完全一致；build95ec1d94e68d，Mio／Akari六套CG、八個新模組均已發佈。PR #4已成功附在目前聊天。無未完成程式修改；本次回饋交付完成。後續保持使用者肯定的風格，依真人實機體驗調整，不要再採用已棄用Mio馬尾／齊瀏海方案。

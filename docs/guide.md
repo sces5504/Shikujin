@@ -15,3 +15,5 @@
 新增release腳本自行使用4182／4184埠；請勿同時開多套release。壓測可單獨執行 `node tests/game/performance.mjs`，報告位於test-results/performance-after.json；測量包含GPU同步readback。
 
 1.6測試工具：在機庫或戰鬥依序輸入 `wwssadadba` 再按Enter。開啟後可用右上測試工具按鈕再次進入。錢／解鎖即時存檔；局內提供等級、指定強化、補滿／無敵、技能重置、清彈、跳波、地圖及Boss。關閉回到原狀態，不需加網址參數。主動結算是平安返航，只有生命歸零才使用戰損畫面。凜的時停會保留敵彈，停止期間仍須避開。
+
+新增feedback-browser使用4186埠；不要與其他測試同時占用。
