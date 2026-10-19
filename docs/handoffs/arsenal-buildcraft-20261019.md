@@ -27,3 +27,13 @@
 影片追加後最終本機release：2026-10-19 14:40（Asia/Taipei），b45462d之上dirty工作樹八命令全過98.55秒、34項邏輯（20＋3＋11）及五套瀏覽器／效能。軟體GPU解析度0.7，模擬p95 0.8ms、繪製含readback median41.5／p95 59.2／max63.1ms，GL error0；240敵／1233彈／749掉落。互動壓測最長task65ms。最終build/stage45780d16ecee。該數據反映本機負載，不是跨硬體效能保證。發布只用.artifacts/site。
 
 PR #5的最終head7155375（Checks39211277781成功）已整合為93d9a47。合併後文字覆核發現萬華稜鏡藍圖仍用舊顯示名「分裂光束」，追加同步成「武裝擴充」；ID與需求不變。此文字修正另建置／stage並由最新main Pages完整release驗證，最終公開版本以下方部署證據為準。
+
+## 最終正式部署與公開驗證
+
+PR https://github.com/sces5504/Shikujin/pull/5 已合併；7155375為最終功能head，merge93d9a47；最後藍圖文字同步b0f9c0c12eaf19ad163e174fa8d9a30819c886ab。main Checks https://github.com/sces5504/Shikujin/actions/runs/39211509802 成功；Pages https://github.com/sces5504/Shikujin/actions/runs/39211509798 的configuration／完整release／build／stage／upload／deploy全成功。前一個被新文字修正取代的Pages39211432206已主動取消，不是目前部署失敗。
+
+2026-10-19 14:46（Asia/Taipei）核對公開 https://sces5504.github.io/Shikujin/?v=1.7 ，61個網站資源以驗證TLS的HTTPS逐一下載，SHA256全部與本機.artifacts/site一致；約8.00MB，build **9988208a8d76**。部署只包含stage，沒有PDF、影片、文件或工具。HTML與所有JS／美術採同一內容版本。
+
+最終main CI（b0f9c0c）34項邏輯測試（20原模擬、3原feedback、11本次）、五套瀏覽器／效能流程全過，包含10分鐘無盡、2分鐘全構築、256像素方向、桌面手機／存檔／子路徑、技能／GPU恢復。CI軟體GPU解析度0.7，同場240敵／1233彈／749掉落：模擬p95 0.7ms，含readback繪製median19.4／p95 22.1／max24.6ms，GL error0。效能預算未放寬，沒有刪危險彈／停碰撞的效能捷徑。
+
+本次十二項實作交付完成；無已確認未處理程式項目。三支影片僅做有記錄的畫面抽樣，不宣稱整片逐秒觀看。Safari／Firefox、低階真機及真人長期構築平衡仍非本次Chromium自動驗證可代替。下一位依新的使用者任務接續，不重做此處歷史回饋；維持Mio／Akari與整套CG、存檔ID及模組入口。

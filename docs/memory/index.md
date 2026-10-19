@@ -2,6 +2,8 @@
 
 已完成並上線：https://sces5504.github.io/Shikujin/ 。repo sces5504/Shikujin，2026-10-19（Asia/Taipei）。使用者本次免 grilling，授權自主規格／提交／合併／部署，並要求完整內容而非第一里程碑原型。
 
+目前正式版 **1.7**，本機main，PR #5合併93d9a47，最終文字修正／部署來源b0f9c0c。Checks39211509802與Pages39211509798成功；只部署.artifacts/site，公開61檔SHA256逐一與stage一致，build **9988208a8d76**。34項邏輯＋五套瀏覽器／效能流程，含256項方向像素檢查。三支後補壓縮影片已實際抽樣檢視，細節與本機／CI效能分列於1.7交接。原1.6與中間工作樹數據為歷史，不代表新的測試。
+
 - 另一位AI接手入口／可貼prompt：docs/handoffs/ai-takeover-20261019.md
 - 規格：docs/spec.md
 - 架構與魔改入口：docs/architecture.md
@@ -9,11 +11,12 @@
 - 使用者偏好：docs/memory/owner-preferences.md
 - 決策：docs/memory/decisions.md
 - 美術：docs/art/style-guide.md、asset-contract.md
-- 最新回饋交接：docs/handoffs/flight-feedback-20261019.md
+- 最新1.7交接：docs/handoffs/arsenal-buildcraft-20261019.md
+- 前版1.6交接：docs/handoffs/flight-feedback-20261019.md
 - 前版打磨交接：docs/handoffs/polish-raiden-20261019.md
 - 初版完整交接：docs/handoffs/shikujin-20261019.md
 
-目前本機分支main。1.6已整合PR #4（功能5d2fc15、merge1659feb），最後測試時序修正62e347a。GitHub Checks39188631070、Pages release39188631121完整通過並部署；build revision95ec1d94e68d。公開57檔案經HTTPS下載與stage產物SHA256完全一致。23項邏輯測試、四套瀏覽器／效能流程通過（含10分鐘無盡、密碼、特色武器、凍結彈、返航與GPU恢復）。正式瀏覽器直連沿用既有代理CA限制，沒有停用TLS；本地及CI Chromium正常。前版記錄見polish-raiden交接。
+1.6歷史發布紀錄：已整合PR #4（功能5d2fc15、merge1659feb），最後測試時序修正62e347a。GitHub Checks39188631070、Pages release39188631121完整通過並部署；build revision95ec1d94e68d。公開57檔案經HTTPS下載與stage產物SHA256完全一致。23項邏輯測試、四套瀏覽器／效能流程通過（含10分鐘無盡、密碼、特色武器、凍結彈、返航與GPU恢復）。正式瀏覽器直連沿用既有代理CA限制，沒有停用TLS；本地及CI Chromium正常。前版記錄見polish-raiden交接。
 
 現有內容：五章25波戰役與結局、無盡模式、5 Boss／機體／空域、4成年原創駕駛員與戰損立繪、武器進化、永久研究、成就、默契、圖鑑、作戰紀錄、存檔匯出／匯入、觸控／鍵盤、原創合成器配樂。
 
