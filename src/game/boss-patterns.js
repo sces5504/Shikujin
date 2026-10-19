@@ -2,6 +2,47 @@
 // Every major attack alternates a telegraph and a finite firing window.
 const TAU = Math.PI * 2;
 export const bossPatterns = {
+  curtain(w, e, phase) {
+    const aim = e.aim,
+      co = Math.cos(aim + Math.PI / 2),
+      si = Math.sin(aim + Math.PI / 2),
+      gap = (e.volley % 5) - 2;
+    for (let i = -5; i <= 5; i++) {
+      if (Math.abs(i - gap) <= 1) continue;
+      for (let row = 0; row < (phase ? 3 : 2); row++)
+        w.enemyBullet(
+          { x: e.x + co * i * 48, y: e.y + si * i * 48 },
+          aim,
+          105 + row * 26,
+          "needle",
+        );
+    }
+  },
+  braid(w, e, phase) {
+    for (const side of [-1, 1])
+      for (let i = 0; i < (phase ? 9 : 6); i++)
+        w.enemyBullet(
+          e,
+          e.aim + side * (0.22 + Math.sin(e.age * 1.7 + i * 0.3) * 0.45),
+          95 + i * 13,
+          "petal",
+        );
+  },
+  pincer(w, e, phase) {
+    for (const side of [-1, 1]) {
+      const origin = {
+        x: e.x + Math.cos(e.aim + Math.PI / 2) * side * 120,
+        y: e.y + Math.sin(e.aim + Math.PI / 2) * side * 120,
+      };
+      for (let i = -2; i <= 2; i++)
+        w.enemyBullet(
+          origin,
+          e.aim - side * 0.25 + i * 0.1,
+          phase ? 165 : 130,
+          i % 2 ? "plasma" : "needle",
+        );
+    }
+  },
   spiral(w, e, phase) {
     for (let i = 0; i < (phase ? 7 : 5); i++)
       w.enemyBullet(
@@ -73,10 +114,13 @@ export function updateBoss(w, e, dt) {
   if (cycle > 6) return;
   if (e.fire <= 0) {
     e.volley = (e.volley || 0) + 1;
-    bossPatterns[e.pattern || "spiral"](w, e, phase);
+    const motifs = e.motifs || [e.pattern || "spiral"],
+      motif = motifs[Math.floor(e.age / 8) % motifs.length];
+    bossPatterns[motif](w, e, phase);
     if (e.volley % 4 === 0) {
       const a = Math.atan2(w.player.y - e.y, w.player.x - e.x);
-      for (let i = -2; i <= 2; i++) w.enemyBullet(e, a + i * 0.14, 170);
+      for (let i = -2; i <= 2; i++)
+        w.enemyBullet(e, a + i * 0.14, 170, "needle");
     }
     e.fire =
       e.pattern === "spiral" || e.pattern === "eclipse"

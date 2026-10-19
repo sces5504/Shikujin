@@ -335,7 +335,7 @@ test("all four ultimates produce distinct effects; stasis preserves hostile bull
       assert.ok(w.bullets.some((b) => b.enemy && b.life > 0));
     else assert.ok(w.bullets.every((b) => !b.enemy || b.life <= 0));
     assert.ok(w.player.invuln >= 2);
-    if (pilot === "mio") assert.equal(w.strikes.length, 8);
+    if (pilot === "mio") assert.equal(w.ultimate.fired, 0);
     if (pilot === "yuki") assert.ok(w.player.hp > 30);
     w.step(1 / 60);
     assert.ok(w.ultimate.remaining > 0);

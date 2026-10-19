@@ -9,7 +9,8 @@ export const WEAPONS = {
   laser: {
     name: "相位貫穿雷射",
     en: "PHASE LANCE",
-    description: "持續追瞄的長距離雷射，穿透整條航線；追加彈道形成多束光槍。",
+    description:
+      "持續追瞄的長距離雷射，穿透整條航線；武裝擴充增加單束寬度與能量，平滑彎曲鎖定目標。",
     color: "#b8a5ff",
   },
   cannon: {
@@ -30,4 +31,30 @@ export const WEAPONS = {
     description: "兩架護衛僚機交叉射擊，自動追蹤導彈處理遠方目標。",
     color: "#ffe9ab",
   },
+};
+
+export const WEAPON_TUNING = {
+  twin: { type: "shot", speed: 760, damage: 0.8, spacing: 20 },
+  laser: {
+    length: 1000,
+    width: 9,
+    multiWidth: 4,
+    pierceWidth: 2,
+    damage: 1.3,
+    multiDamage: 0.35,
+    pierceDamage: 0.12,
+    tracking: 7,
+    waveAmplitude: 24,
+    waveSpeed: 7,
+    waveCycles: 2,
+  },
+  cannon: { type: "shell", speed: 440, damage: 1.7, spacing: 0.08 },
+  spread: {
+    type: "spread",
+    speed: 600,
+    damage: 0.62,
+    spacing: 0.17,
+    baseCount: 4,
+  },
+  carrier: { type: "escort", speed: 700, damage: 0.7, multiDamage: 0.25 },
 };

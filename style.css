@@ -3241,3 +3241,23 @@ h1 span {
     letter-spacing: 0;
   }
 }
+
+.upgrade-route {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #a8dddb;
+  border-top: 1px solid #7edbd333;
+  padding-top: 10px;
+}
+.upgrade-card small {
+  color: #ffdb9d;
+  letter-spacing: 0.08em;
+}
+@media (max-width: 600px) {
+  .upgrade-route {
+    font-size: 10px;
+  }
+  .upgrade-card p {
+    line-height: 1.45;
+  }
+}

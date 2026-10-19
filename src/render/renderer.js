@@ -1,3 +1,4 @@
+import { projectileType } from "../content/projectiles.js";
 import { BattleCamera } from "./camera.js";
 import { combatEffects } from "./effects.js";
 import { drawBoundary } from "./boundary.js";
@@ -352,6 +353,14 @@ export class Renderer {
         );
       }
     }
+    for (const m of w.mines || []) {
+      c.strokeStyle = m.arm > 0 ? "#9eacb5" : "#ffc786";
+      c.lineWidth = 2;
+      polygon(c, m.x, m.y, 13, 6, w.time * 0.4);
+      c.stroke();
+      c.fillStyle = "#fff0bf";
+      c.fillRect(m.x - 3, m.y - 3, 6, 6);
+    }
     this.projectiles(c, w, visible);
     c.globalCompositeOperation = "lighter";
     for (const ex of w.explosions || []) {
@@ -440,11 +449,14 @@ export class Renderer {
     c.globalAlpha = 0.45;
     this.sprite(c, shadow, p.x + 20, p.y + 34, shipSize, angle, true);
     c.globalAlpha = 1;
-    if (p.invuln <= 0 || Math.floor(time * 16) % 2) {
+    {
+      c.globalAlpha =
+        p.invuln > 0 ? 0.65 + 0.35 * Math.abs(Math.sin(time * 18)) : 1;
       const sprite = this.cache.sprite("craft", w.ship.shape);
       if (sprite) this.sprite(c, sprite, p.x, p.y, shipSize, angle);
       else drawShip(c, p.x, p.y, p.angle, w.ship.color, w.ship.shape, 23, time);
     }
+    c.globalAlpha = 1;
     c.globalCompositeOperation = "lighter";
     const jet = this.cache.glow(w.ultimate ? "#ffda8a" : "#73d6ff");
     c.drawImage(
@@ -503,56 +515,14 @@ export class Renderer {
       );
   }
   projectiles(c, w, visible) {
-    if (this.fx.available) {
-      for (const b of w.bullets) {
-        if (b.life <= 0 || !visible(b.x, b.y, 25)) continue;
-        if (b.enemy) {
-          this.fx.sprite(this.cache.enemyBullet(w.stasis > 0), b.x, b.y, 24);
-          continue;
-        }
-        const speed = Math.hypot(b.vx, b.vy) || 1;
-        this.fx.point(
-          b.x,
-          b.y,
-          b.kind === "shell" ? 34 : b.kind === "missile" ? 25 : 30,
-          b.kind === "shell" ? 6 : b.kind === "missile" ? 2 : 1,
-          b.vx / speed,
-          b.vy / speed,
-        );
-      }
-      return;
-    }
     for (const b of w.bullets) {
-      if (b.life <= 0 || !visible(b.x, b.y, 24)) continue;
-      if (b.enemy) {
-        c.fillStyle = "#180b29";
-        c.beginPath();
-        c.arc(b.x, b.y, 10, 0, Math.PI * 2);
-        c.fill();
-        c.fillStyle = "#ff3c9c";
-        c.beginPath();
-        c.arc(b.x, b.y, 7.5, 0, Math.PI * 2);
-        c.fill();
-        c.fillStyle = "#fff5fd";
-        c.beginPath();
-        c.arc(b.x, b.y, 4.5, 0, Math.PI * 2);
-        c.fill();
-        if (w.stasis > 0) {
-          c.strokeStyle = "#c1b5ff";
-          c.lineWidth = 1.5;
-          c.beginPath();
-          c.arc(b.x, b.y, 11.5, 0, Math.PI * 2);
-          c.stroke();
-        }
-      } else {
-        c.strokeStyle = b.kind === "shell" ? "#ffd18a" : "#9cf4ff";
-        c.lineWidth = b.kind === "shell" ? 7 : 3;
-        const speed = Math.hypot(b.vx, b.vy) || 1;
-        c.beginPath();
-        c.moveTo(b.x - (b.vx / speed) * 15, b.y - (b.vy / speed) * 15);
-        c.lineTo(b.x, b.y);
-        c.stroke();
-      }
+      if (b.life <= 0 || !visible(b.x, b.y, 40)) continue;
+      const id = b.type || b.kind,
+        def = projectileType(id),
+        sprite = this.cache.projectile(id, b.enemy, w.stasis > 0 && b.enemy),
+        angle = Math.atan2(b.vy, b.vx);
+      if (this.fx.available) this.fx.sprite(sprite, b.x, b.y, def.size, angle);
+      else blit(c, sprite, b.x, b.y, def.size, angle);
     }
   }
 

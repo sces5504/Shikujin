@@ -1,3 +1,4 @@
+import { BUILD_UPGRADES, LIMIT_BREAKS } from "./builds.js";
 export const RULES = {
   waveSeconds: 24,
   bossEvery: 5,
@@ -150,7 +151,7 @@ export const PILOTS = [
     ability: "星海裁決",
     skill: "nova",
     cooldown: 28,
-    description: "呼叫八次軌道轟擊，大範圍清彈與殲滅。",
+    description: "8 秒內連續鎖定 24 次軌道轟擊，壓制敵群與 Boss。",
     lines: [
       "全艦注意，作戰開始。",
       "很好。繼續保持這個節奏。",
@@ -257,13 +258,15 @@ const upgrade = (
   rarity = "standard",
 ) => ({ id, name, en, description, icon, max, rarity });
 export const UPGRADES = [
+  ...BUILD_UPGRADES,
+  ...LIMIT_BREAKS,
   upgrade("damage", "高能核心", "POWER CORE", "主砲傷害 +25%", "✦", 8),
   upgrade("rate", "疾風扳機", "RAPID TRIGGER", "主砲射速 +18%", "»", 7),
   upgrade(
     "multi",
-    "分裂光束",
+    "武裝擴充",
     "SPLIT BEAM",
-    "增加一道主砲彈道",
+    "依機體擴充主武器：砲線、光束寬度、散射或僚機火力",
     "⋔",
     4,
     "rare",
@@ -291,7 +294,7 @@ export const UPGRADES = [
     "pulse",
     "脈衝力場",
     "PULSE FIELD",
-    "週期釋放範圍衝擊波",
+    "每 3.2 秒震擊 340m 起跳範圍，每級增加 45m",
     "◎",
     5,
     "rare",
