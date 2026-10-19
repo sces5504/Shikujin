@@ -1,10 +1,22 @@
-# 素材契約 v1
+# 素材契約 v1.5
 
-- `assets/pilots.webp`：1536×1024、四等寬直欄、依赤璃／凜／雪羽／澪順序，sRGB、不透明。原始生成圖留在 workspace/generated_images，不放大圖進網站。生成工具於 2026-10-19 產出四位原創成年角色，使用者提供參考氣質，不直接重製附件角色。
-- assets/pilots-damaged.webp 同尺寸與排序，戰損為煙灰、凌亂髮型、外套及裝甲損傷。
-- assets/bosses.webp：1536×1024、3×2 透明格圖集，前五格依 encounters.js 的 sprite 0–4，右下保留空格。
-- CSS 以 `background-size:400% auto`、水平 0/33.333/66.667/100% 顯示單位肖像，直向偏移約18%。PILOTS 以 portrait／defeatPortrait 宣告圖集座標，也支援 columns:1 的獨立新角色圖。
-- 程序化飛機與敵人無外部貼圖；Renderer 座標單位為世界像素，中心 pivot。新增 ship shape 應維持同等光影與線條品質。
-- 建置將 assets 複製至 dist/assets；所有資源用相對路徑，支援 GitHub Pages repo 子路徑。
-- 圖片整體預算 <3 MB；新角色如改獨立立繪須一起修改資料模型與 CSS，不得直接覆蓋四欄排序。
-- assets/fonts 包含 Rajdhani 與 Noto Sans TC 本地子集及各自 OFL 授權；加入新中文字時重建子集或用系統 fallback。
+所有圖像為2026-10-19工具生成的原創資產，附件僅作風格／色彩參考。四人CG從同一新版賽璐璐母圖衍生，原始生成檔留workspace/generated_images；網站只放壓縮WebP。
+
+| 資產 | 尺寸／排列 | 使用 |
+| --- | --- | --- |
+| pilots.webp | 1536×1024，四等寬直欄 | 赤璃／凜／雪羽／澪日常 |
+| pilots-damaged.webp | 同上 | 相同角色戰損 |
+| pilots-ultimate.webp | 同上 | 大絕完整CG |
+| pilots-memory.webp | 同上 | 回憶休息室 |
+| pilots-radio.webp | 同上，透明 | 常駐通訊 |
+| pilots-burst.webp | 同上，透明 | 大絕cut-in |
+| craft.webp | 1536×1024，3×2，最後一格空 | 五架機體 |
+| enemycraft.webp | 1536×1024，3×2 | 六類敵人 |
+| bosses.webp | 1536×1024，3×2透明，最後一格空 | 五Boss，原版保留 |
+| background-0..4.webp | 各1536×1024 | 五章完整地表，按需載入 |
+
+PILOTS以各種portrait欄位宣告asset／column／columns。四欄CSS為400% auto與水平0/33.333/66.667/100%；支援columns:1新增獨立人物，別改既有排序。戰機中心pivot，combat快取100px、預覽420px；新增機體同步render/cache.js圖集座標，無貼圖時保留幾何fallback。
+
+全部assets約7.5MB，背景逐章載入；新增圖像預算維持整包10MB內並檢查手機記憶體。背景縮放surface僅留目前地圖；精靈texture按圖片快取。建置保留相對路徑且加入內容hash，支援Pages子路徑及版本更新。
+
+assets/fonts為Rajdhani／Noto Sans TC本地子集及OFL授權。不能另加第三方字體runtime依賴。

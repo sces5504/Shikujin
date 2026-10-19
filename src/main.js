@@ -26,10 +26,11 @@ let last = performance.now(),
   accumulator = 0;
 const fixed = 1 / 60;
 function frame(now) {
-  const elapsed = Math.min((now - last) / 1000, 0.1);
+  const frameMs = now - last;
+  const elapsed = Math.min(frameMs / 1000, 0.05);
   last = now;
   if (app.world?.state === "playing") {
-    accumulator += elapsed;
+    accumulator = Math.min(accumulator + elapsed, fixed * 3);
     while (accumulator >= fixed) {
       app.world.step(fixed, input.get());
       accumulator -= fixed;
@@ -39,6 +40,7 @@ function frame(now) {
       }
     }
   } else accumulator = 0;
+  renderer.adapt(frameMs, app.world?.state === "playing");
   renderer.render(app.world, now / 1000);
   app.frame(now);
   requestAnimationFrame(frame);

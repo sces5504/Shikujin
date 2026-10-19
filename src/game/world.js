@@ -1,3 +1,5 @@
+import { updateUltimates } from "./ultimates.js";
+import { ObjectPool } from "../core/pool.js";
 import { BOSSES } from "../content/encounters.js";
 import { DIFFICULTIES } from "../content/progression.js";
 import { applyResearch, checkEvolutions } from "./progression.js";
@@ -58,6 +60,7 @@ export class World {
       overdrive: 0,
       sinceHit: 0,
     };
+    this.playerTarget = [this.player];
     this.player.multi = s.multi || 1;
     this.player.dash = 0;
     this.player.dashTime = 0;
@@ -67,6 +70,16 @@ export class World {
     applyResearch(this, research);
     this.enemies = [];
     this.bullets = [];
+    this.bulletPool = new ObjectPool(() => ({ hit: new Set() }), 2048);
+    this.candidates = [];
+    this.enemyBulletCount = 0;
+    this.playerBulletCount = 0;
+    this.strikes = [];
+    this.ultimate = null;
+    this.combo = 0;
+    this.comboTime = 0;
+    this.damageNumbers = [];
+    this.explosions = [];
     this.drops = [];
     this.particles = [];
     this.rings = [];
@@ -104,6 +117,7 @@ export class World {
     systems.enemies(this, dt);
     this.grid.rebuild(this.enemies);
     systems.weapons(this, dt);
+    updateUltimates(this, dt);
     systems.projectiles(this, dt);
     if (this.state === "playing") systems.pickups(this, dt);
     systems.cleanup(this, dt);
@@ -155,9 +169,15 @@ export class World {
     return e;
   }
   playerBullet(x, y, angle, speed, damage, pierce, kind) {
-    if (this.bullets.length >= RULES.maxBullets) return;
-    const crit = this.rng.next() < this.player.crit;
-    this.bullets.push({
+    if (
+      this.playerBulletCount >= RULES.maxPlayerBullets ||
+      this.bullets.length >= RULES.maxBullets
+    )
+      return;
+    const crit = this.rng.next() < this.player.crit,
+      b = this.bulletPool.acquire();
+    b.hit.clear();
+    Object.assign(b, {
       id: this.ids++,
       x,
       y,
@@ -172,12 +192,21 @@ export class World {
       crit,
       r: kind === "missile" ? 6 : 4,
       life: 2,
-      hit: new Set(),
+      grazed: false,
+      target: null,
     });
+    this.bullets.push(b);
+    this.playerBulletCount++;
   }
   enemyBullet(e, angle, speed) {
-    if (this.bullets.length >= RULES.maxBullets) return;
-    this.bullets.push({
+    if (
+      this.enemyBulletCount >= RULES.maxEnemyBullets ||
+      this.bullets.length >= RULES.maxBullets
+    )
+      return;
+    const b = this.bulletPool.acquire();
+    b.hit.clear();
+    Object.assign(b, {
       id: this.ids++,
       x: e.x,
       y: e.y,
@@ -191,15 +220,44 @@ export class World {
       enemy: true,
       r: 5,
       life: 7,
-      hit: new Set(),
+      grazed: false,
+      crit: false,
+      target: null,
     });
+    this.bullets.push(b);
+    this.enemyBulletCount++;
   }
+  clearEnemyBullets() {
+    for (const b of this.bullets) if (b.enemy) b.life = 0;
+  }
+  resetProjectiles() {
+    for (const b of this.bullets) this.bulletPool.release(b);
+    this.bullets.length = 0;
+    this.enemyBulletCount = 0;
+    this.playerBulletCount = 0;
+  }
+
   hit(e, damage) {
     if (e.hp <= 0) return;
     e.hp -= damage;
     e.flash = 0.08;
+    if (
+      this.time - (e.lastNumber || -1) > 0.12 &&
+      this.damageNumbers.length < 32 &&
+      damage > 3
+    ) {
+      e.lastNumber = this.time;
+      this.damageNumbers.push({
+        x: e.x,
+        y: e.y - e.r,
+        value: Math.round(damage),
+        life: 0.6,
+      });
+    }
     if (e.hp <= 0) {
       this.kills++;
+      this.combo++;
+      this.comboTime = 3.5;
       this.score += e.score;
       if (e.kind === "boss") this.xp += e.xp * this.player.xpFactor;
       else {
@@ -210,13 +268,21 @@ export class World {
           drop.value += e.xp;
         }
       }
-      this.burst(e.x, e.y, e.color, e.kind === "boss" ? 50 : 9);
+      if (this.explosions.length < 48)
+        this.explosions.push({
+          x: e.x,
+          y: e.y,
+          r: e.kind === "boss" ? 180 : 35 + e.r,
+          life: e.kind === "boss" ? 1.2 : 0.55,
+          maxLife: e.kind === "boss" ? 1.2 : 0.55,
+        });
+      this.burst(e.x, e.y, "#ffae55", e.kind === "boss" ? 50 : 9);
       this.events.emit("kill", e);
       if (e.kind === "boss") {
         this.bossArena = null;
         this.bossKills++;
         this.killedBosses.push(e.bossId);
-        this.bullets = this.bullets.filter((b) => !b.enemy);
+        this.clearEnemyBullets();
         this.player.hp = Math.min(
           this.player.maxHp,
           this.player.hp + this.player.maxHp * 0.25,
@@ -240,6 +306,7 @@ export class World {
     if (p.hp <= 0) this.finish();
   }
   blast(x, y, r, damage, color) {
+    if (this.rings.length >= 32) this.rings.shift();
     this.rings.push({
       x,
       y,
