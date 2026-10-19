@@ -316,7 +316,7 @@ test("affection migrates existing bond and daily actions are atomic with one-tim
   assert.equal(s.interact("akari", "gift", "cake", "2026-10-20").ok, false);
   assert.equal(s.data.affection.akari.gifts, giftCount);
 });
-test("all four ultimates produce distinct persistent combat effects and clear hostile bullets", () => {
+test("all four ultimates produce distinct effects; stasis preserves hostile bullets", () => {
   for (const [pilot, kind] of [
     ["akari", "overdrive"],
     ["rin", "stasis"],
@@ -331,7 +331,9 @@ test("all four ultimates produce distinct persistent combat effects and clear ho
     w.player.hp = 30;
     assert.ok(w.skill());
     assert.equal(w.ultimate.kind, kind);
-    assert.ok(w.bullets.every((b) => !b.enemy || b.life <= 0));
+    if (pilot === "rin")
+      assert.ok(w.bullets.some((b) => b.enemy && b.life > 0));
+    else assert.ok(w.bullets.every((b) => !b.enemy || b.life <= 0));
     assert.ok(w.player.invuln >= 2);
     if (pilot === "mio") assert.equal(w.strikes.length, 8);
     if (pilot === "yuki") assert.ok(w.player.hp > 30);
@@ -384,4 +386,102 @@ test("ten-minute endless stress keeps every transient collection and pool bounde
   assert.ok(w.bulletPool.free.length <= 2048);
   assert.ok(w.bulletPool.created <= RULES.maxBullets + 500);
   assert.equal(new Set(w.bulletPool.free).size, w.bulletPool.free.length);
+});
+
+test("stasis freezes enemy movement, firing, bullets and lifetime while frozen bullets still hurt", () => {
+  const w = new World({ pilot: "rin" });
+  w.spawnTimer = 1e6;
+  w.waveTime = -1e6;
+  const e = w.spawn("striker");
+  e.x = 200;
+  e.y = 0;
+  e.hp = e.maxHp = 1e8;
+  w.enemyBullet(e, 0, 100);
+  const b = w.bullets[0];
+  e.x = 600;
+  const initial = {
+    x: b.x,
+    y: b.y,
+    life: b.life,
+    ex: e.x,
+    ey: e.y,
+    fire: e.fire,
+    age: e.age,
+  };
+  w.skill();
+  tick(w, 240);
+  assert.equal(b.x, initial.x);
+  assert.equal(b.y, initial.y);
+  assert.equal(b.life, initial.life);
+  assert.equal(e.x, initial.ex);
+  assert.equal(e.y, initial.ey);
+  assert.equal(e.fire, initial.fire);
+  assert.equal(e.age, initial.age);
+  w.player.x = b.x;
+  w.player.y = b.y;
+  w.player.invuln = 0;
+  w.player.shield = 0;
+  const hp = w.player.hp;
+  w.step(1 / 60);
+  assert.ok(w.player.hp < hp, "frozen bullet must remain collidable");
+  w.enemyBullet(e, 0, 100);
+  const resumed = w.bullets.find((x) => x.enemy);
+  const x = resumed.x,
+    life = resumed.life;
+  w.stasis = 0.001;
+  w.step(1 / 60);
+  assert.ok(resumed.x > x);
+  assert.ok(resumed.life < life);
+});
+test("all airframes have distinct main weapons; laser pierces and shell explodes", () => {
+  const geometries = [];
+  for (const ship of SHIPS) {
+    const w = new World({ ship: ship.id, pilot: "yuki" });
+    w.spawnTimer = 1e6;
+    for (const x of [160, 250]) {
+      const e = w.spawn("tank");
+      e.x = x;
+      e.y = 0;
+      e.hp = e.maxHp = 1e8;
+      e.speed = 0;
+    }
+    w.step(1 / 60);
+    geometries.push(
+      [
+        w.beams.length,
+        w.bullets
+          .map((b) => b.kind)
+          .sort()
+          .join(","),
+      ].join("/"),
+    );
+    if (ship.weapon === "laser")
+      assert.ok(w.enemies.every((e) => e.hp < e.maxHp));
+    if (ship.weapon === "cannon") {
+      const b = w.bullets[0];
+      b.x = 155;
+      b.y = 0;
+      b.vx = 500;
+      b.vy = 0;
+      w.step(0.02);
+      assert.ok(w.impacts.some((i) => i.kind === "shell"));
+      assert.ok(w.enemies[1].hp < w.enemies[1].maxHp);
+    }
+  }
+  assert.equal(new Set(geometries).size, SHIPS.length);
+});
+test("retreat and defeat remain different terminal results with a single settlement event", () => {
+  const w = new World();
+  let count = 0;
+  w.events.on("defeat", () => count++);
+  w.finish(false, "retreat");
+  assert.equal(w.result.reason, "retreat");
+  assert.equal(w.result.clear, false);
+  w.finish();
+  assert.equal(count, 1);
+  assert.equal(w.result.reason, "retreat");
+  const lost = new World();
+  lost.player.shield = 0;
+  lost.hurt(1e8);
+  assert.equal(lost.result.reason, "defeat");
 });

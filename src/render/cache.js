@@ -39,6 +39,32 @@ export class RenderCache {
           size,
           size,
         );
+      if (name === "enemycraft") {
+        const original = surface(size),
+          oc = original.getContext("2d");
+        oc.drawImage(tile, 0, 0);
+        const tint = surface(size),
+          tc = tint.getContext("2d");
+        tc.drawImage(tile, 0, 0);
+        tc.globalCompositeOperation = "source-in";
+        const t = tile.getContext("2d");
+        t.clearRect(0, 0, size, size);
+        for (const [r, color] of [
+          [4, "#160e24"],
+          [2, "#ff87ae"],
+        ]) {
+          tc.fillStyle = color;
+          tc.fillRect(0, 0, size, size);
+          for (const [dx, dy] of [
+            [r, 0],
+            [-r, 0],
+            [0, r],
+            [0, -r],
+          ])
+            t.drawImage(tint, dx, dy);
+        }
+        t.drawImage(original, 0, 0);
+      }
       this.sprites.set(`${name}:${i}`, tile);
       if (name === "craft") {
         const preview = surface(420);
@@ -78,6 +104,34 @@ export class RenderCache {
   }
   sprite(group, index) {
     return this.sprites.get(`${group}:${index}`);
+  }
+  enemyBullet(frozen = false) {
+    const key = frozen ? "frozen-bullet" : "hostile-bullet";
+    if (this.sprites.has(key)) return this.sprites.get(key);
+    const cv = surface(40),
+      c = cv.getContext("2d");
+    cv.danger = true;
+    c.fillStyle = "#180b29";
+    c.beginPath();
+    c.arc(20, 20, 18, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#ff3297";
+    c.beginPath();
+    c.arc(20, 20, 13.5, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#fff5fd";
+    c.beginPath();
+    c.arc(20, 20, 8, 0, Math.PI * 2);
+    c.fill();
+    if (frozen) {
+      c.strokeStyle = "#c1b5ff";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(20, 20, 16.5, 0, Math.PI * 2);
+      c.stroke();
+    }
+    this.sprites.set(key, cv);
+    return cv;
   }
   glow(color) {
     if (this.glows.has(color)) return this.glows.get(color);

@@ -1,3 +1,7 @@
+import { BattleCamera } from "./camera.js";
+import { combatEffects } from "./effects.js";
+import { drawBoundary } from "./boundary.js";
+import { escortPositions } from "../game/weapons.js";
 import { GPULayer } from "./gpu.js";
 import { RenderCache, blit } from "./cache.js";
 import { terrain } from "./terrain.js";
@@ -173,6 +177,7 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false });
     this.cache = new RenderCache();
+    this.camera = new BattleCamera();
     this.fx = new GPULayer();
     this.width = 0;
     this.height = 0;
@@ -233,26 +238,25 @@ export class Renderer {
       W = this.width,
       H = this.height;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const camera = this.camera.update(w, W, H, this.scale, time);
     this.fx.begin(
       W,
       H,
-      (w?.player.x || 0) -
-        (this.reduced ? 0 : Math.sin(time * 87) * (w?.shake || 0)),
-      (w?.player.y || 0) -
-        (this.reduced ? 0 : Math.cos(time * 97) * (w?.shake || 0)),
+      camera.x - (this.reduced ? 0 : Math.sin(time * 87) * (w?.shake || 0)),
+      camera.y - (this.reduced ? 0 : Math.cos(time * 97) * (w?.shake || 0)),
       this.scale,
     );
     c.globalAlpha = 1;
     c.globalCompositeOperation = "source-over";
     c.shadowBlur = 0;
-    terrain(c, this.cache, w, W, H, this.scale, time);
+    terrain(c, this.cache, w, W, H, this.scale, time, camera);
     if (!w) {
       this.stats.renderMs = performance.now() - start;
       return;
     }
     const p = w.player,
-      px = p.x,
-      py = p.y,
+      px = camera.x,
+      py = camera.y,
       sx = W / this.scale / 2 + 120,
       sy = H / this.scale / 2 + 120,
       visible = (x, y, r = 70) =>
@@ -263,16 +267,7 @@ export class Renderer {
     c.translate(-px, -py);
     if (!this.reduced && w.shake)
       c.translate(Math.sin(time * 87) * w.shake, Math.cos(time * 97) * w.shake);
-    if (w.bossArena) {
-      const a = w.bossArena;
-      c.strokeStyle = a.color + "60";
-      c.lineWidth = 2;
-      c.setLineDash([24, 18]);
-      c.beginPath();
-      c.arc(a.x, a.y, a.r, 0, Math.PI * 2);
-      c.stroke();
-      c.setLineDash([]);
-    }
+    drawBoundary(c, w, camera, W, H, this.scale);
     // Drop cores are batched. Glows are pre-rasterized once, never shadowBlur per item.
     c.globalCompositeOperation = "lighter";
     c.fillStyle = "#91ffe0";
@@ -295,7 +290,7 @@ export class Renderer {
         group = boss ? "bosses" : "enemycraft",
         index = boss ? e.bossSprite || 0 : Math.max(0, kinds.indexOf(e.kind)),
         sprite = this.cache.sprite(group, index),
-        size = e.r * (boss ? 3.5 : 3.1);
+        size = e.r * (boss ? 3.85 : 4);
       if (e.telegraph > 0) {
         c.strokeStyle = e.color + "99";
         c.lineWidth = 1;
@@ -312,16 +307,18 @@ export class Renderer {
         c.stroke();
         c.setLineDash([]);
       }
-      c.globalAlpha = 0.4;
-      this.sprite(
-        c,
-        this.cache.sprite(group, index),
-        e.x + 15,
-        e.y + 24,
-        size,
-        angle,
-        true,
-      );
+      if (this.quality === "high" || w.enemies.length < 120 || e.id % 3 === 0) {
+        c.globalAlpha = 0.4;
+        this.sprite(
+          c,
+          this.cache.sprite(group, index),
+          e.x + 15,
+          e.y + 24,
+          size,
+          angle,
+          true,
+        );
+      }
       c.globalAlpha = 1;
       if (sprite) this.sprite(c, sprite, e.x, e.y, size, angle);
       else {
@@ -345,9 +342,14 @@ export class Renderer {
       }
       if (!boss && e.hp < e.maxHp) {
         c.fillStyle = "#07131dcc";
-        c.fillRect(e.x - e.r, e.y - e.r - 12, e.r * 2, 3);
+        c.fillRect(e.x - e.r, e.y - size / 2 - 8, e.r * 2, 3);
         c.fillStyle = "#ffcc87";
-        c.fillRect(e.x - e.r, e.y - e.r - 12, (e.r * 2 * e.hp) / e.maxHp, 2);
+        c.fillRect(
+          e.x - e.r,
+          e.y - size / 2 - 8,
+          (e.r * 2 * e.hp) / e.maxHp,
+          2,
+        );
       }
     }
     this.projectiles(c, w, visible);
@@ -377,12 +379,24 @@ export class Renderer {
       c.globalAlpha = Math.max(0, r.life / r.maxLife);
       c.strokeStyle = r.color;
       c.lineWidth = 2;
-      c.beginPath();
-      c.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+      const alpha = Math.max(0, r.life / r.maxLife);
+      c.lineWidth = 1 + alpha * 2;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + w.time * 0.12;
+        c.beginPath();
+        c.arc(r.x, r.y, r.r, a, a + 0.7);
+        c.stroke();
+        const x = r.x + Math.cos(a) * r.r,
+          y = r.y + Math.sin(a) * r.r;
+        c.fillStyle = r.color;
+        c.fillRect(x - 2, y - 2, 4, 4);
+      }
+      c.lineWidth = 1;
+      polygon(c, r.x, r.y, r.r * 0.93, 12, w.time * 0.1);
       c.stroke();
     }
     c.globalAlpha = 1;
-    this.ultimate(c, w);
+    combatEffects(c, w);
     c.globalCompositeOperation = "source-over";
     for (const n of w.damageNumbers || []) {
       if (!visible(n.x, n.y, 40)) continue;
@@ -390,6 +404,16 @@ export class Renderer {
       c.drawImage(this.cache.number(n.value), n.x - 34, n.y - 12);
     }
     c.globalAlpha = 1;
+    if (w.ship.weapon === "carrier")
+      for (const pos of escortPositions(w))
+        this.sprite(
+          c,
+          this.cache.sprite("craft", 4),
+          pos.x,
+          pos.y,
+          39,
+          pos.angle + Math.PI / 2,
+        );
     const drones = w.upgrades.drone || 0;
     for (let i = 0; i < drones; i++) {
       const a = w.time * 1.8 + (i / drones) * Math.PI * 2,
@@ -411,7 +435,7 @@ export class Renderer {
       c.stroke();
     }
     const angle = p.angle + Math.PI / 2,
-      shipSize = 67,
+      shipSize = 86,
       shadow = this.cache.sprite("craft", w.ship.shape);
     c.globalAlpha = 0.45;
     this.sprite(c, shadow, p.x + 20, p.y + 34, shipSize, angle, true);
@@ -436,6 +460,7 @@ export class Renderer {
     c.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
     c.fill();
     c.restore();
+    if (this.fx.available) this.fx.point(p.x, p.y, 13, 8);
     this.fx.flush();
     const boss = w.enemies.find((e) => e.kind === "boss" && e.hp > 0);
     if (boss) {
@@ -481,91 +506,56 @@ export class Renderer {
     if (this.fx.available) {
       for (const b of w.bullets) {
         if (b.life <= 0 || !visible(b.x, b.y, 25)) continue;
+        if (b.enemy) {
+          this.fx.sprite(this.cache.enemyBullet(w.stasis > 0), b.x, b.y, 24);
+          continue;
+        }
         const speed = Math.hypot(b.vx, b.vy) || 1;
         this.fx.point(
           b.x,
           b.y,
-          b.enemy ? 16 : b.kind === "missile" ? 24 : 30,
-          b.enemy ? 0 : b.kind === "missile" ? 2 : 1,
+          b.kind === "shell" ? 34 : b.kind === "missile" ? 25 : 30,
+          b.kind === "shell" ? 6 : b.kind === "missile" ? 2 : 1,
           b.vx / speed,
           b.vy / speed,
         );
       }
       return;
     }
-    c.globalCompositeOperation = "lighter";
-    const enemy = this.cache.glow("#ffbe59"),
-      shot = this.cache.glow("#81cfff");
     for (const b of w.bullets) {
-      if (b.life <= 0 || !visible(b.x, b.y, 20)) continue;
-      const size = b.enemy ? 15 : 11;
-      c.drawImage(
-        b.enemy ? enemy : shot,
-        b.x - size / 2,
-        b.y - size / 2,
-        size,
-        size,
-      );
-    }
-    c.globalCompositeOperation = "source-over";
-  }
-
-  ultimate(c, w) {
-    const u = w.ultimate,
-      p = w.player;
-    if (u) {
-      c.save();
-      c.translate(p.x, p.y);
-      if (u.kind === "overdrive") {
-        for (let i = -1; i <= 1; i++) {
-          const a = p.angle + i * 0.1;
-          c.strokeStyle = "#ff653a77";
-          c.lineWidth = 30;
+      if (b.life <= 0 || !visible(b.x, b.y, 24)) continue;
+      if (b.enemy) {
+        c.fillStyle = "#180b29";
+        c.beginPath();
+        c.arc(b.x, b.y, 10, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "#ff3c9c";
+        c.beginPath();
+        c.arc(b.x, b.y, 7.5, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "#fff5fd";
+        c.beginPath();
+        c.arc(b.x, b.y, 4.5, 0, Math.PI * 2);
+        c.fill();
+        if (w.stasis > 0) {
+          c.strokeStyle = "#c1b5ff";
+          c.lineWidth = 1.5;
           c.beginPath();
-          c.moveTo(0, 0);
-          c.lineTo(Math.cos(a) * 1000, Math.sin(a) * 1000);
-          c.stroke();
-          c.strokeStyle = "#fff5bd";
-          c.lineWidth = 5;
+          c.arc(b.x, b.y, 11.5, 0, Math.PI * 2);
           c.stroke();
         }
       } else {
-        const colors = {
-          stasis: "#b9a6ff",
-          repair: "#a1ffe9",
-          nova: "#ffb0cd",
-        };
-        c.strokeStyle = colors[u.kind];
-        c.lineWidth = 3;
-        for (let i = 0; i < 3; i++) {
-          c.beginPath();
-          c.arc(
-            0,
-            0,
-            80 + i * 55 + Math.sin(w.time * 3) * 10,
-            w.time * (i % 2 ? 1 : -1),
-            w.time * (i % 2 ? 1 : -1) + Math.PI * 1.6,
-          );
-          c.stroke();
-        }
+        c.strokeStyle = b.kind === "shell" ? "#ffd18a" : "#9cf4ff";
+        c.lineWidth = b.kind === "shell" ? 7 : 3;
+        const speed = Math.hypot(b.vx, b.vy) || 1;
+        c.beginPath();
+        c.moveTo(b.x - (b.vx / speed) * 15, b.y - (b.vy / speed) * 15);
+        c.lineTo(b.x, b.y);
+        c.stroke();
       }
-      c.restore();
-    }
-    for (const st of w.strikes || []) {
-      const r = st.r * (1 - st.delay / 0.65);
-      c.strokeStyle = "#ffb9df";
-      c.lineWidth = 2;
-      c.beginPath();
-      c.arc(st.x, st.y, Math.max(5, r), 0, Math.PI * 2);
-      c.stroke();
-      c.beginPath();
-      c.moveTo(st.x - 20, st.y);
-      c.lineTo(st.x + 20, st.y);
-      c.moveTo(st.x, st.y - 20);
-      c.lineTo(st.x, st.y + 20);
-      c.stroke();
     }
   }
+
   pointer(c) {
     if (!this.input?.pointer) return;
     const rect = this.canvas.getBoundingClientRect(),

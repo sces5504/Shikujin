@@ -20,3 +20,5 @@ PILOTS以各種portrait欄位宣告asset／column／columns。四欄CSS為400% a
 全部assets約7.5MB，背景逐章載入；新增圖像預算維持整包10MB內並檢查手機記憶體。背景縮放surface僅留目前地圖；精靈texture按圖片快取。建置保留相對路徑且加入內容hash，支援Pages子路徑及版本更新。
 
 assets/fonts為Rajdhani／Noto Sans TC本地子集及OFL授權。不能另加第三方字體runtime依賴。
+
+1.6更新六套角色CG，同尺寸與排序、透明alpha契約不變。最終母圖為exec-2097589b：Akari束髮，Mio保留側分披散長髮。敵彈／敵機輪廓由cache.js一次預繪；敵彈texture帶danger標記進前景批次，單批容量2048大於1500敵彈上限。

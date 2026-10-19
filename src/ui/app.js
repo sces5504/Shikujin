@@ -1,3 +1,6 @@
+import { edgeDistance } from "../render/boundary.js";
+import { DebugUI } from "./debug.js";
+import { WEAPONS } from "../content/weapons.js";
 import { BondUI } from "./bond.js";
 import { portraitStyle } from "./portraits.js";
 import { MetaUI } from "./meta.js";
@@ -30,7 +33,12 @@ export class App {
     $("dashButton").onclick = () => this.world?.dash(this.input.get());
     $("skillButton").onclick = () => this.world?.skill();
     window.addEventListener("keydown", (e) => {
-      if (e.repeat) return;
+      if (
+        e.repeat ||
+        this.menu === "debug" ||
+        e.target.closest?.("input,textarea,select")
+      )
+        return;
       if (e.code === "ShiftLeft" || e.code === "ShiftRight")
         this.world?.dash(this.input.get());
       if (
@@ -66,6 +74,7 @@ export class App {
     this.meta.updateLabel();
     this.applySettings();
     this.hangar();
+    this.debug = new DebugUI(this);
   }
   applySettings() {
     const quality = this.store.data.quality || "auto";
@@ -127,7 +136,8 @@ export class App {
     $("shipName").innerHTML = `${s.name} <span>${s.en}</span>`;
     $("shipNumber").textContent = pad(s.shape + 1);
     $("shipRole").textContent = s.role;
-    $("shipDescription").textContent = s.description;
+    $("shipDescription").textContent = WEAPONS[s.weapon].description;
+    $("shipRole").textContent = `${s.role} / ${WEAPONS[s.weapon].name}`;
     $("shipStats").innerHTML = [
       ["裝甲", s.hp, s.hp / 180],
       ["機動", s.speed, s.speed / 330],
@@ -372,7 +382,7 @@ export class App {
     );
     $("resume").onclick = () => this.resume();
     $("inGameSettings").onclick = () => this.settings(true);
-    $("abandon").onclick = () => w.finish();
+    $("abandon").onclick = () => w.finish(false, "retreat");
   }
   resume() {
     this.audio.unlock();
@@ -458,9 +468,10 @@ export class App {
     this.input.active = false;
     this.input.clear();
     this.audio.tone(180, 0.8, "triangle");
-    const i = PILOTS.indexOf(w.pilot);
+    const retreat = result.reason === "retreat";
+    const damaged = !result.clear && !retreat;
     this.modal(
-      `<div class="result-layout"><div class="result-art portrait ${result.clear ? "" : "damaged"}" style="${portraitStyle(w.pilot, !result.clear)}"></div><div class="result-data"><div class="modal-eyebrow" style="color:#ff96ac">${result.clear ? "MISSION COMPLETE / DAWN RISING" : "SIGNAL LOST / RETURN TO BASE"}</div><h2 class="modal-title">${result.clear ? "破曉之時，與你同在。" : "航跡未完，待續。"}</h2><p class="result-quote">${w.pilot.name}：「${result.clear ? "星海重歸寧靜。謝謝你，陪我飛到了最後。下一段航程，也一起吧。" : w.pilot.defeat}」</p><div class="result-stats"><div><small>抵達波次</small><b>${pad(result.wave)}</b></div><div><small>作戰分數</small><b>${pad(result.score, 5)}</b></div><div><small>敵機擊破</small><b>${result.kills}</b></div><div><small>生存時間</small><b>${pad(result.time / 60)}:${pad(result.time % 60)}</b></div></div><div class="reward"><span>✧ 獲得信用點</span><b>+ ${result.reward}</b></div><div class="modal-actions"><button id="retry" class="primary-button">再次出擊</button><button id="returnHangar" class="secondary-button">返回機庫 · 更換搭檔</button></div></div></div>`,
+      `<div class="result-layout"><div class="result-art portrait ${damaged ? "damaged" : ""}" style="${portraitStyle(w.pilot, damaged)}"></div><div class="result-data"><div class="modal-eyebrow" style="color:#ff96ac">${result.clear ? "MISSION COMPLETE / DAWN RISING" : retreat ? "MISSION DEBRIEF / SAFE RETURN" : "SIGNAL LOST / RETURN TO BASE"}</div><h2 class="modal-title">${result.clear ? "破曉之時，與你同在。" : retreat ? "平安返航，整備再出發。" : "航跡未完，待續。"}</h2><p class="result-quote">${w.pilot.name}：「${result.clear ? "星海重歸寧靜。謝謝你，陪我飛到了最後。下一段航程，也一起吧。" : retreat ? "作戰資料已帶回。休息一下，再一起出擊吧。" : w.pilot.defeat}」</p><div class="result-stats"><div><small>抵達波次</small><b>${pad(result.wave)}</b></div><div><small>作戰分數</small><b>${pad(result.score, 5)}</b></div><div><small>敵機擊破</small><b>${result.kills}</b></div><div><small>生存時間</small><b>${pad(result.time / 60)}:${pad(result.time % 60)}</b></div></div><div class="reward"><span>✧ 獲得信用點</span><b>+ ${result.reward}</b></div><div class="modal-actions"><button id="retry" class="primary-button">再次出擊</button><button id="returnHangar" class="secondary-button">返回機庫 · 更換搭檔</button></div></div></div>`,
       "defeat",
     );
     $("retry").onclick = () => this.launch();
@@ -470,6 +481,12 @@ export class App {
     const w = this.world;
     if (!w) return;
     const p = w.player;
+    const distance = Math.max(0, Math.round(edgeDistance(w)));
+    $("boundaryWarning").classList.toggle("hidden", distance >= 320);
+    $("boundaryWarning").textContent =
+      `⚠ 作戰邊界 · ${distance} m · 請向空域中央轉向`;
+    $("navigation").textContent =
+      `${w.map.name} / X ${Math.round(p.x)} · Y ${Math.round(p.y)}${w.stasis > 0 ? ` / 時間凍結 ${w.stasis.toFixed(1)}s` : ""}${w.testing ? " / TEST FLIGHT" : ""}`;
     $("healthText").textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
     $("shieldText").textContent = `SHIELD ${Math.ceil(p.shield)}`;
     $("healthFill").style.width = `${(p.hp / p.maxHp) * 100}%`;

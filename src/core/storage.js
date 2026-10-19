@@ -94,6 +94,11 @@ export function sanitizeSave(raw) {
       reward: r.reward,
       pilot: PILOTS.some((p) => p.id === r.pilot) ? r.pilot : "akari",
       clear: !!r.clear,
+      reason: ["retreat", "clear", "defeat"].includes(r.reason)
+        ? r.reason
+        : r.clear
+          ? "clear"
+          : "defeat",
     }));
   return d;
 }
@@ -198,6 +203,7 @@ export class SaveStore {
       reward: result.reward,
       pilot: result.pilot || "akari",
       clear: !!result.clear,
+      reason: result.reason || (result.clear ? "clear" : "defeat"),
     });
     this.data.history = this.data.history.slice(0, 10);
     this.write();

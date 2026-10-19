@@ -1,9 +1,14 @@
 import { compact } from "../core/pool.js";
 export function startUltimate(w, kind) {
-  w.clearEnemyBullets();
+  if (kind !== "stasis") w.clearEnemyBullets();
   w.player.invuln = Math.max(2, w.player.invuln);
   const durations = { overdrive: 6, stasis: 7, repair: 8, nova: 5 };
-  w.ultimate = { kind, remaining: durations[kind], tick: 0 };
+  w.ultimate = {
+    kind,
+    remaining: durations[kind],
+    duration: durations[kind],
+    tick: 0,
+  };
   if (kind === "overdrive") w.player.overdrive = 6;
   if (kind === "stasis") w.stasis = 7;
   if (kind === "repair") {
@@ -72,6 +77,15 @@ export function updateUltimates(w, dt) {
     if (strike.delay <= 0 && !strike.fired) {
       strike.fired = true;
       w.blast(strike.x, strike.y, strike.r, p.damage * 8, "#ffb6dc");
+      if (w.impacts.length < 24)
+        w.impacts.push({
+          x: strike.x,
+          y: strike.y,
+          r: strike.r,
+          kind: "orbital",
+          life: 0.85,
+          maxLife: 0.85,
+        });
       if (w.explosions.length < 48)
         w.explosions.push({
           x: strike.x,
