@@ -3,7 +3,9 @@ export const RULES = {
   bossEvery: 5,
   surgeEvery: 3,
   maxEnemies: 240,
-  maxBullets: 1000,
+  maxBullets: 2000,
+  maxEnemyBullets: 1500,
+  maxPlayerBullets: 500,
   maxParticles: 350,
   arena: 2400,
 };
@@ -55,6 +57,10 @@ export const SHIPS = [
 export const PILOTS = [
   {
     id: "akari",
+    radioPortrait: { asset: "pilots-radio.webp", column: 0, columns: 4 },
+    burstPortrait: { asset: "pilots-burst.webp", column: 0, columns: 4 },
+    ultimatePortrait: { asset: "pilots-ultimate.webp", column: 0, columns: 4 },
+    memoryPortrait: { asset: "pilots-memory.webp", column: 0, columns: 4 },
     portrait: { asset: "pilots.webp", column: 0, columns: 4 },
     defeatPortrait: { asset: "pilots-damaged.webp", column: 0, columns: 4 },
     name: "赤璃",
@@ -63,10 +69,10 @@ export const PILOTS = [
     title: "黎明之刃",
     color: "#ffc18b",
     passive: "傷害 +15%",
-    ability: "赤紅超載",
+    ability: "黎明殲星砲",
     skill: "overdrive",
     cooldown: 24,
-    description: "8 秒內射速加倍，移動加速。",
+    description: "6 秒殲星光砲，穿透前方敵群並加速射擊。",
     lines: [
       "航路確認。這片天空，交給我。",
       "別回頭，繼續突破！",
@@ -76,6 +82,10 @@ export const PILOTS = [
   },
   {
     id: "rin",
+    radioPortrait: { asset: "pilots-radio.webp", column: 1, columns: 4 },
+    burstPortrait: { asset: "pilots-burst.webp", column: 1, columns: 4 },
+    ultimatePortrait: { asset: "pilots-ultimate.webp", column: 1, columns: 4 },
+    memoryPortrait: { asset: "pilots-memory.webp", column: 1, columns: 4 },
     portrait: { asset: "pilots.webp", column: 1, columns: 4 },
     defeatPortrait: { asset: "pilots-damaged.webp", column: 1, columns: 4 },
     name: "凜",
@@ -84,10 +94,10 @@ export const PILOTS = [
     title: "靜默頻率",
     color: "#c2afff",
     passive: "拾取範圍 +50%",
-    ability: "虛空靜止",
+    ability: "零時領域",
     skill: "stasis",
     cooldown: 26,
-    description: "敵人與敵彈減速 75%，持續 6 秒。",
+    description: "7 秒時間領域，敵群減速並遭受相位追擊。",
     lines: [
       "通訊正常。保持冷靜，我在。",
       "敵方軌跡已解析。",
@@ -97,6 +107,10 @@ export const PILOTS = [
   },
   {
     id: "yuki",
+    radioPortrait: { asset: "pilots-radio.webp", column: 2, columns: 4 },
+    burstPortrait: { asset: "pilots-burst.webp", column: 2, columns: 4 },
+    ultimatePortrait: { asset: "pilots-ultimate.webp", column: 2, columns: 4 },
+    memoryPortrait: { asset: "pilots-memory.webp", column: 2, columns: 4 },
     portrait: { asset: "pilots.webp", column: 2, columns: 4 },
     defeatPortrait: { asset: "pilots-damaged.webp", column: 2, columns: 4 },
     name: "雪羽",
@@ -105,10 +119,10 @@ export const PILOTS = [
     title: "白夜之翼",
     color: "#8bf8ed",
     passive: "最大護盾 +30",
-    ability: "極光修復",
+    ability: "白夜聖域",
     skill: "repair",
     cooldown: 30,
-    description: "修復 30% 生命、補滿護盾並清除敵彈。",
+    description: "修復 45% 生命，展開 8 秒再生護盾與脈衝結界。",
     lines: [
       "今天也一起平安返航吧！",
       "收到！我會守住你的側翼。",
@@ -118,6 +132,10 @@ export const PILOTS = [
   },
   {
     id: "mio",
+    radioPortrait: { asset: "pilots-radio.webp", column: 3, columns: 4 },
+    burstPortrait: { asset: "pilots-burst.webp", column: 3, columns: 4 },
+    ultimatePortrait: { asset: "pilots-ultimate.webp", column: 3, columns: 4 },
+    memoryPortrait: { asset: "pilots-memory.webp", column: 3, columns: 4 },
     portrait: { asset: "pilots.webp", column: 3, columns: 4 },
     defeatPortrait: { asset: "pilots-damaged.webp", column: 3, columns: 4 },
     name: "澪",
@@ -126,10 +144,10 @@ export const PILOTS = [
     title: "深海指揮官",
     color: "#f38c9e",
     passive: "經驗獲得 +20%",
-    ability: "星潮殲滅",
+    ability: "星海裁決",
     skill: "nova",
     cooldown: 28,
-    description: "全域高能衝擊，清除敵彈並重創敵人。",
+    description: "呼叫八次軌道轟擊，大範圍清彈與殲滅。",
     lines: [
       "全艦注意，作戰開始。",
       "很好。繼續保持這個節奏。",
@@ -141,7 +159,7 @@ export const PILOTS = [
 export const MAPS = [
   {
     id: "aether",
-    name: "蒼藍星環",
+    name: "蒼藍海岸",
     en: "AETHER RIFT",
     color: "#46dcdf",
     bg: "#050e1b",
@@ -151,7 +169,7 @@ export const MAPS = [
   },
   {
     id: "cinder",
-    name: "赤燼星雲",
+    name: "赤燼峽谷",
     en: "CINDER NEBULA",
     color: "#ff916e",
     bg: "#160b18",
@@ -161,7 +179,7 @@ export const MAPS = [
   },
   {
     id: "violet",
-    name: "幽紫深淵",
+    name: "幽紫空港",
     en: "VIOLET ABYSS",
     color: "#bc9aff",
     bg: "#0c0a22",
@@ -349,7 +367,7 @@ SHIPS.push(
 MAPS.push(
   {
     id: "aurora",
-    name: "極光聖域",
+    name: "極光冰原",
     en: "AURORA SANCTUM",
     color: "#b1f2c9",
     bg: "#071715",
@@ -359,7 +377,7 @@ MAPS.push(
   },
   {
     id: "eclipse",
-    name: "日蝕王座",
+    name: "日蝕熔爐",
     en: "ECLIPSE THRONE",
     color: "#ffe1a4",
     bg: "#17120c",

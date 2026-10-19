@@ -1,3 +1,6 @@
+import { GPULayer } from "./gpu.js";
+import { RenderCache, blit } from "./cache.js";
+import { terrain } from "./terrain.js";
 import { BOSSES } from "../content/encounters.js";
 import { RULES } from "../content/catalog.js";
 export function drawShip(
@@ -169,385 +172,419 @@ export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false });
+    this.cache = new RenderCache();
+    this.fx = new GPULayer();
     this.width = 0;
     this.height = 0;
     this.scale = 1;
     this.reduced = false;
-    this.stars = Array.from({ length: 170 }, (_, i) => ({
-      x: (Math.sin(i * 127.1) * 43758) % 1,
-      y: (Math.sin(i * 311.7) * 96321) % 1,
-      z: ((i % 3) + 1) / 3,
-    }));
-    this.bossAtlas = new Image();
-    this.bossAtlas.src = new URL(
-      "../../assets/bosses.webp",
-      import.meta.url,
-    ).href;
+    this.quality = "auto";
+    this.resolution = 1;
+    this.stats = { renderMs: 0, ema: 16.7 };
     this.resize();
   }
   resize() {
     const rect = this.canvas.getBoundingClientRect();
     this.width = rect.width;
     this.height = rect.height;
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.canvas.width = Math.round(rect.width * this.dpr);
-    this.canvas.height = Math.round(rect.height * this.dpr);
+    const max =
+      this.quality === "performance" ? 1 : this.quality === "high" ? 2 : 1.5;
+    this.dpr = Math.min(window.devicePixelRatio || 1, max) * this.resolution;
+    this.canvas.width = Math.max(1, Math.round(rect.width * this.dpr));
+    this.canvas.height = Math.max(1, Math.round(rect.height * this.dpr));
+    this.fx.resize(this.width, this.height, this.dpr);
     this.scale = Math.max(
       0.6,
       Math.min(1.1, Math.min(this.width / 1120, this.height / 750)),
     );
+    this.vignette = this.ctx.createRadialGradient(
+      this.width / 2,
+      this.height / 2,
+      this.height * 0.25,
+      this.width / 2,
+      this.height / 2,
+      Math.max(this.width, this.height) * 0.65,
+    );
+    this.vignette.addColorStop(0, "#030c1200");
+    this.vignette.addColorStop(1, "#020811a0");
+  }
+  adapt(frameMs, playing) {
+    if (!playing || document.hidden || this.quality !== "auto") return;
+    this.stats.ema = this.stats.ema * 0.96 + Math.min(100, frameMs) * 0.04;
+    this.adaptFrames = (this.adaptFrames || 0) + 1;
+    if (this.adaptFrames > 600 && this.stats.ema < 19 && this.resolution < 1) {
+      this.resolution = Math.min(1, this.resolution + 0.1);
+      this.resize();
+      this.adaptFrames = 0;
+    }
+    if (
+      this.adaptFrames > 24 &&
+      this.stats.ema > 27 &&
+      this.resolution > 0.72
+    ) {
+      this.resolution = Math.max(0.7, this.resolution - 0.15);
+      this.resize();
+      this.adaptFrames = 0;
+    }
   }
   render(w, time) {
-    const c = this.ctx,
+    const start = performance.now(),
+      c = this.ctx,
       W = this.width,
-      H = this.height,
-      d = this.dpr;
-    c.setTransform(d, 0, 0, d, 0, 0);
-    c.fillStyle = w ? w.map.bg : "#050e1b";
-    c.fillRect(0, 0, W, H);
-    const px = w?.player.x ?? time * 6,
-      py = w?.player.y ?? time * 4;
-    const nebula = c.createRadialGradient(
-      W * 0.6,
-      H * 0.3,
-      0,
-      W * 0.6,
-      H * 0.3,
-      W * 0.7,
+      H = this.height;
+    c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.fx.begin(
+      W,
+      H,
+      (w?.player.x || 0) -
+        (this.reduced ? 0 : Math.sin(time * 87) * (w?.shake || 0)),
+      (w?.player.y || 0) -
+        (this.reduced ? 0 : Math.cos(time * 97) * (w?.shake || 0)),
+      this.scale,
     );
-    nebula.addColorStop(0, (w?.map.accent || "#12313e") + "a0");
-    nebula.addColorStop(1, "#05091400");
-    c.fillStyle = nebula;
-    c.fillRect(0, 0, W, H);
-    c.fillStyle = "#b8dfe6";
-    for (const s of this.stars) {
-      const x = (((s.x * W - px * s.z * 0.12) % W) + W) % W,
-        y = (((s.y * H - py * s.z * 0.12) % H) + H) % H;
-      c.globalAlpha = 0.2 + s.z * 0.45;
-      c.fillRect(x, y, s.z * 1.8, s.z * 1.8);
-    }
     c.globalAlpha = 1;
+    c.globalCompositeOperation = "source-over";
+    c.shadowBlur = 0;
+    terrain(c, this.cache, w, W, H, this.scale, time);
+    if (!w) {
+      this.stats.renderMs = performance.now() - start;
+      return;
+    }
+    const p = w.player,
+      px = p.x,
+      py = p.y,
+      sx = W / this.scale / 2 + 120,
+      sy = H / this.scale / 2 + 120,
+      visible = (x, y, r = 70) =>
+        Math.abs(x - px) < sx + r && Math.abs(y - py) < sy + r;
     c.save();
     c.translate(W / 2, H / 2);
     c.scale(this.scale, this.scale);
     c.translate(-px, -py);
-    if (w && !this.reduced)
+    if (!this.reduced && w.shake)
       c.translate(Math.sin(time * 87) * w.shake, Math.cos(time * 97) * w.shake);
-    c.strokeStyle = (w?.map.color || "#46dcdf") + "0c";
-    c.lineWidth = 1;
-    const spanX = W / this.scale / 2 + 120,
-      spanY = H / this.scale / 2 + 120;
-    for (
-      let x = Math.floor((px - spanX) / 100) * 100;
-      x < px + spanX;
-      x += 100
-    ) {
-      c.beginPath();
-      c.moveTo(x, py - spanY);
-      c.lineTo(x, py + spanY);
-      c.stroke();
-    }
-    for (
-      let y = Math.floor((py - spanY) / 100) * 100;
-      y < py + spanY;
-      y += 100
-    ) {
-      c.beginPath();
-      c.moveTo(px - spanX, y);
-      c.lineTo(px + spanX, y);
-      c.stroke();
-    }
-    // Ancient orbital structures, seen through the scrolling star field.
-    c.strokeStyle = (w?.map.color || "#46dcdf") + "12";
-    c.lineWidth = 2;
-    for (const [x, y, r] of [
-      [-400, -200, 290],
-      [650, 460, 420],
-      [-900, 900, 330],
-      [1100, -1100, 470],
-    ]) {
-      c.beginPath();
-      c.arc(x, y, r, 0, Math.PI * 2);
-      c.stroke();
-      c.beginPath();
-      c.arc(x, y, r - 22, 0.2, Math.PI * 1.5);
-      c.stroke();
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2;
-        c.beginPath();
-        c.moveTo(x + Math.cos(a) * (r - 30), y + Math.sin(a) * (r - 30));
-        c.lineTo(x + Math.cos(a) * (r + 30), y + Math.sin(a) * (r + 30));
-        c.stroke();
-      }
-    }
-    if (!w) {
-      c.restore();
-      return;
-    }
     if (w.bossArena) {
       const a = w.bossArena;
-      c.save();
-      c.strokeStyle = a.color + "66";
-      c.lineWidth = 3;
-      c.setLineDash([25, 15]);
+      c.strokeStyle = a.color + "60";
+      c.lineWidth = 2;
+      c.setLineDash([24, 18]);
       c.beginPath();
       c.arc(a.x, a.y, a.r, 0, Math.PI * 2);
       c.stroke();
       c.setLineDash([]);
-      c.strokeStyle = a.color + "15";
-      c.lineWidth = 22;
-      c.stroke();
-      c.restore();
     }
-    const visible = (e, r = 100) =>
-      Math.abs(e.x - px) < spanX + r && Math.abs(e.y - py) < spanY + r;
-    c.strokeStyle = "#ff9d782f";
-    c.lineWidth = 4;
-    c.strokeRect(-RULES.arena, -RULES.arena, RULES.arena * 2, RULES.arena * 2);
+    // Drop cores are batched. Glows are pre-rasterized once, never shadowBlur per item.
     c.globalCompositeOperation = "lighter";
-    for (const drop of w.drops) {
-      if (!visible(drop)) continue;
-      c.fillStyle = "#70f6da";
-      c.shadowColor = "#6affd6";
-      c.shadowBlur = this.reduced ? 0 : 10;
-      polygon(c, drop.x, drop.y, 4, 4, time);
-      c.fill();
+    c.fillStyle = "#91ffe0";
+    const dropGlow = this.cache.glow("#67ffd5");
+    for (const d of w.drops) {
+      if (!visible(d.x, d.y, 15)) continue;
+      if (this.fx.available) this.fx.point(d.x, d.y, 10, 3);
+      else c.drawImage(dropGlow, d.x - 6, d.y - 6, 12, 12);
     }
-    c.shadowBlur = 0;
+    c.globalCompositeOperation = "source-over";
+    const kinds = ["scout", "striker", "orbiter", "tank", "charger", "healer"];
     for (const e of w.enemies) {
-      if (!visible(e)) continue;
-      const boss = e.kind === "boss";
+      if (e.hp <= 0 || !visible(e.x, e.y, 130)) continue;
+      const boss = e.kind === "boss",
+        angle = boss
+          ? e.pattern === "spiral" || e.pattern === "eclipse"
+            ? e.age * 0.1
+            : Math.atan2(p.y - e.y, p.x - e.x) + Math.PI / 2
+          : Math.atan2(p.y - e.y, p.x - e.x) + Math.PI / 2,
+        group = boss ? "bosses" : "enemycraft",
+        index = boss ? e.bossSprite || 0 : Math.max(0, kinds.indexOf(e.kind)),
+        sprite = this.cache.sprite(group, index),
+        size = e.r * (boss ? 3.5 : 3.1);
       if (e.telegraph > 0) {
-        c.save();
-        c.globalAlpha = e.telegraph * 0.5;
-        c.strokeStyle = e.color;
+        c.strokeStyle = e.color + "99";
         c.lineWidth = 1;
-        c.setLineDash([8, 9]);
+        c.setLineDash([7, 9]);
         c.beginPath();
-        c.arc(e.x, e.y, e.r + 28 + (1 - e.telegraph) * 30, 0, Math.PI * 2);
+        c.arc(e.x, e.y, e.r + 25 + (1 - e.telegraph) * 30, 0, Math.PI * 2);
         c.stroke();
         c.beginPath();
         c.moveTo(e.x, e.y);
         c.lineTo(
-          e.x + Math.cos(e.aim || 0) * 650,
-          e.y + Math.sin(e.aim || 0) * 650,
+          e.x + Math.cos(e.aim || 0) * 450,
+          e.y + Math.sin(e.aim || 0) * 450,
         );
         c.stroke();
         c.setLineDash([]);
-        c.restore();
       }
-
-      if (
-        boss &&
-        Number.isInteger(e.bossSprite) &&
-        this.bossAtlas.complete &&
-        this.bossAtlas.naturalWidth
-      ) {
-        const index = e.bossSprite,
-          cell = this.bossAtlas.naturalWidth / 3;
-        c.save();
-        c.globalCompositeOperation = "source-over";
-        c.shadowBlur = 0;
-        c.translate(e.x, e.y);
-        c.rotate(
-          e.pattern === "spiral" || e.pattern === "eclipse"
-            ? e.age * 0.1
-            : Math.atan2(w.player.y - e.y, w.player.x - e.x) + Math.PI / 2,
-        );
-        c.drawImage(
-          this.bossAtlas,
-          (index % 3) * cell,
-          Math.floor(index / 3) * cell,
-          cell,
-          cell,
-          -e.r * 1.6,
-          -e.r * 1.6,
-          e.r * 3.2,
-          e.r * 3.2,
-        );
-        c.globalCompositeOperation = "lighter";
-        if (e.flash) {
-          c.fillStyle = "#ffffff44";
-          c.beginPath();
-          c.arc(0, 0, e.r * 0.65, 0, Math.PI * 2);
-          c.fill();
-        }
-        c.restore();
-        continue;
-      }
-      c.strokeStyle = e.flash ? "#fff" : e.color;
-      c.fillStyle = e.color + "18";
-      c.lineWidth = boss ? 3 : 1.7;
-      c.shadowColor = e.color;
-      c.shadowBlur = this.reduced ? 0 : boss ? 24 : 9;
-      polygon(c, e.x, e.y, e.r, e.shape, e.age * (boss ? 0.2 : 0.6));
-      c.fill();
-      c.stroke();
-      polygon(c, e.x, e.y, e.r * 0.52, e.shape, -e.age);
-      c.stroke();
-      c.fillStyle = e.color;
-      polygon(c, e.x, e.y, e.r * 0.14, 4, 0);
-      c.fill();
-      if (boss) {
-        for (let i = 0; i < 6; i++) {
-          const a = e.age * 0.6 + (i / 6) * Math.PI * 2;
-          polygon(
-            c,
-            e.x + Math.cos(a) * e.r * 0.75,
-            e.y + Math.sin(a) * e.r * 0.75,
-            7,
-            4,
-            a,
-          );
-          c.stroke();
-        }
-      } else if (e.hp < e.maxHp) {
-        c.shadowBlur = 0;
-        c.fillStyle = "#ffffff20";
-        c.fillRect(e.x - e.r, e.y - e.r - 8, e.r * 2, 2);
+      c.globalAlpha = 0.4;
+      this.sprite(
+        c,
+        this.cache.sprite(group, index),
+        e.x + 15,
+        e.y + 24,
+        size,
+        angle,
+        true,
+      );
+      c.globalAlpha = 1;
+      if (sprite) this.sprite(c, sprite, e.x, e.y, size, angle);
+      else {
         c.fillStyle = e.color;
-        c.fillRect(e.x - e.r, e.y - e.r - 8, (e.r * 2 * e.hp) / e.maxHp, 2);
+        c.beginPath();
+        c.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+        c.fill();
+      }
+      if (e.flash) {
+        c.globalCompositeOperation = "lighter";
+        c.globalAlpha = 0.6;
+        c.drawImage(
+          this.cache.glow("#ffdd9c"),
+          e.x - e.r,
+          e.y - e.r,
+          e.r * 2,
+          e.r * 2,
+        );
+        c.globalAlpha = 1;
+        c.globalCompositeOperation = "source-over";
+      }
+      if (!boss && e.hp < e.maxHp) {
+        c.fillStyle = "#07131dcc";
+        c.fillRect(e.x - e.r, e.y - e.r - 12, e.r * 2, 3);
+        c.fillStyle = "#ffcc87";
+        c.fillRect(e.x - e.r, e.y - e.r - 12, (e.r * 2 * e.hp) / e.maxHp, 2);
       }
     }
-    for (const b of w.bullets) {
-      if (!visible(b, 20)) continue;
-      const color = b.enemy
-        ? "#ff859e"
-        : b.kind === "missile"
-          ? "#ffc481"
-          : b.crit
-            ? "#fff4bd"
-            : w.ship.color;
-      c.strokeStyle = color;
-      c.fillStyle = color;
-      c.lineWidth = b.enemy ? 2 : 3;
-      c.shadowColor = color;
-      c.shadowBlur = this.reduced ? 0 : 10;
-      if (b.enemy) {
-        c.beginPath();
-        c.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-        c.stroke();
-      } else {
-        c.beginPath();
-        c.moveTo(b.x, b.y);
-        c.lineTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022);
-        c.stroke();
-      }
+    this.projectiles(c, w, visible);
+    c.globalCompositeOperation = "lighter";
+    for (const ex of w.explosions || []) {
+      if (!visible(ex.x, ex.y, ex.r)) continue;
+      const age = 1 - ex.life / ex.maxLife,
+        r = ex.r * (0.45 + age * 0.9);
+      c.globalAlpha = Math.max(0, ex.life / ex.maxLife);
+      if (this.fx.available)
+        this.fx.sprite(this.cache.fire, ex.x, ex.y, r * 2, 0, c.globalAlpha);
+      else c.drawImage(this.cache.fire, ex.x - r, ex.y - r, r * 2, r * 2);
     }
-    c.shadowBlur = 0;
-    for (const p of w.particles) {
-      if (this.reduced && p.r < 2) continue;
-      c.globalAlpha = Math.min(1, p.life * 2);
-      c.fillStyle = p.color;
-      c.fillRect(p.x, p.y, p.r * 2, p.r * 2);
+    c.globalAlpha = 1;
+    const fire = this.cache.glow("#ffaf54");
+    for (let i = 0; i < w.particles.length; i++) {
+      const a = w.particles[i];
+      if (!visible(a.x, a.y, 10) || (this.reduced && i % 2)) continue;
+      c.globalAlpha = Math.min(1, a.life * 2);
+      const r = a.r * 3;
+      if (this.fx.available)
+        this.fx.point(a.x, a.y, r * 2, 4, 0, 0, c.globalAlpha);
+      else c.drawImage(fire, a.x - r, a.y - r, r * 2, r * 2);
     }
     c.globalAlpha = 1;
     for (const r of w.rings) {
-      c.globalAlpha = r.life / r.maxLife;
+      c.globalAlpha = Math.max(0, r.life / r.maxLife);
       c.strokeStyle = r.color;
-      c.lineWidth = 4;
+      c.lineWidth = 2;
       c.beginPath();
       c.arc(r.x, r.y, r.r, 0, Math.PI * 2);
       c.stroke();
     }
     c.globalAlpha = 1;
-    const p = w.player;
+    this.ultimate(c, w);
+    c.globalCompositeOperation = "source-over";
+    for (const n of w.damageNumbers || []) {
+      if (!visible(n.x, n.y, 40)) continue;
+      c.globalAlpha = Math.min(1, n.life * 3);
+      c.drawImage(this.cache.number(n.value), n.x - 34, n.y - 12);
+    }
+    c.globalAlpha = 1;
     const drones = w.upgrades.drone || 0;
     for (let i = 0; i < drones; i++) {
-      const a = w.time * 1.8 + (i / drones) * Math.PI * 2;
-      const radius = w.evolutions.includes("singularity") ? 125 : 85;
-      drawShip(
+      const a = w.time * 1.8 + (i / drones) * Math.PI * 2,
+        r = w.evolutions.includes("singularity") ? 125 : 85;
+      this.sprite(
         c,
-        p.x + Math.cos(a) * radius,
-        p.y + Math.sin(a) * radius,
-        a + Math.PI / 2,
-        "#b9b1ff",
-        1,
-        9,
-        time,
+        this.cache.sprite("craft", 4),
+        p.x + Math.cos(a) * r,
+        p.y + Math.sin(a) * r,
+        24,
+        a,
       );
     }
     if (p.shield > 0) {
-      c.strokeStyle = w.stasis > 0 ? "#c3b1ff" : "#74f7ed";
-      c.globalAlpha = 0.15 + (0.2 * p.shield) / p.maxShield;
-      c.lineWidth = 1.5;
-      polygon(c, p.x, p.y, 30, 6, time * 0.2);
-      c.stroke();
-      c.globalAlpha = 1;
-    }
-    if (p.overdrive > 0) {
-      c.strokeStyle = "#ffab82";
+      c.strokeStyle = "#9defff70";
+      c.lineWidth = 1.2;
       c.beginPath();
-      c.arc(p.x, p.y, 40, time * 4, time * 4 + Math.PI * 1.5);
+      c.arc(p.x, p.y, 32, w.time, w.time + Math.PI * 1.7);
       c.stroke();
     }
-    if (p.invuln <= 0 || Math.floor(time * 16) % 2)
-      drawShip(c, p.x, p.y, p.angle, w.ship.color, w.ship.shape, 23, time);
-    c.fillStyle = "#ffffff";
-    c.shadowColor = w.ship.color;
-    c.shadowBlur = 8;
-    c.beginPath();
-    c.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
-    c.fill();
-    c.shadowBlur = 0;
+    const angle = p.angle + Math.PI / 2,
+      shipSize = 67,
+      shadow = this.cache.sprite("craft", w.ship.shape);
+    c.globalAlpha = 0.45;
+    this.sprite(c, shadow, p.x + 20, p.y + 34, shipSize, angle, true);
+    c.globalAlpha = 1;
+    if (p.invuln <= 0 || Math.floor(time * 16) % 2) {
+      const sprite = this.cache.sprite("craft", w.ship.shape);
+      if (sprite) this.sprite(c, sprite, p.x, p.y, shipSize, angle);
+      else drawShip(c, p.x, p.y, p.angle, w.ship.color, w.ship.shape, 23, time);
+    }
+    c.globalCompositeOperation = "lighter";
+    const jet = this.cache.glow(w.ultimate ? "#ffda8a" : "#73d6ff");
+    c.drawImage(
+      jet,
+      p.x - Math.cos(p.angle) * 26 - 17,
+      p.y - Math.sin(p.angle) * 26 - 17,
+      34,
+      34,
+    );
     c.globalCompositeOperation = "source-over";
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+    c.fill();
     c.restore();
-    const bossTarget = w.enemies.find((e) => e.kind === "boss" && e.hp > 0);
-    if (bossTarget) {
-      const dx = (bossTarget.x - px) * this.scale,
-        dy = (bossTarget.y - py) * this.scale;
-      if (Math.abs(dx) > W / 2 - 70 || Math.abs(dy) > H / 2 - 110) {
-        const angle = Math.atan2(dy, dx),
-          distance = Math.min(
-            (W / 2 - 50) / Math.max(0.01, Math.abs(Math.cos(angle))),
-            (H / 2 - 130) / Math.max(0.01, Math.abs(Math.sin(angle))),
+    this.fx.flush();
+    const boss = w.enemies.find((e) => e.kind === "boss" && e.hp > 0);
+    if (boss) {
+      const dx = (boss.x - px) * this.scale,
+        dy = (boss.y - py) * this.scale;
+      if (Math.abs(dx) > W / 2 - 70 || Math.abs(dy) > H / 2 - 120) {
+        const a = Math.atan2(dy, dx),
+          r = Math.min(
+            (W / 2 - 35) / Math.max(0.01, Math.abs(Math.cos(a))),
+            (H / 2 - 120) / Math.max(0.01, Math.abs(Math.sin(a))),
           );
         c.save();
-        c.translate(
-          W / 2 + Math.cos(angle) * distance,
-          H / 2 + Math.sin(angle) * distance,
-        );
-        c.rotate(angle);
-        c.fillStyle = bossTarget.color;
+        c.translate(W / 2 + Math.cos(a) * r, H / 2 + Math.sin(a) * r);
+        c.rotate(a);
+        c.fillStyle = "#ffca85";
         c.beginPath();
-        c.moveTo(10, 0);
+        c.moveTo(11, 0);
         c.lineTo(-7, -7);
         c.lineTo(-7, 7);
         c.fill();
         c.restore();
       }
     }
-    if (this.input?.pointer) {
-      const rect = this.canvas.getBoundingClientRect(),
-        x = this.input.pointer.x - rect.left,
-        y = this.input.pointer.y - rect.top;
-      c.strokeStyle = "#8bf5e440";
-      c.lineWidth = 1;
-      c.beginPath();
-      c.arc(x, y, 45, 0, Math.PI * 2);
-      c.stroke();
-      c.fillStyle = "#8bf5e433";
-      c.beginPath();
-      c.arc(
-        x + this.input.vector.x * 35,
-        y + this.input.vector.y * 35,
-        17,
-        0,
-        Math.PI * 2,
-      );
-      c.fill();
-    }
-    const vignette = c.createRadialGradient(
-      W / 2,
-      H / 2,
-      H * 0.25,
-      W / 2,
-      H / 2,
-      Math.max(W, H) * 0.7,
-    );
-    vignette.addColorStop(0, "#02050b00");
-    vignette.addColorStop(1, "#02050bba");
-    c.fillStyle = vignette;
+    this.pointer(c);
+    c.fillStyle = this.vignette;
     c.fillRect(0, 0, W, H);
+    this.stats.renderMs = performance.now() - start;
+  }
+  sprite(c, image, x, y, size, angle = 0, black = false) {
+    if (this.fx.available)
+      this.fx.sprite(image, x, y, size, angle, c.globalAlpha, black);
+    else
+      blit(
+        c,
+        black ? this.cache.shadows.get(image) || image : image,
+        x,
+        y,
+        size,
+        angle,
+      );
+  }
+  projectiles(c, w, visible) {
+    if (this.fx.available) {
+      for (const b of w.bullets) {
+        if (b.life <= 0 || !visible(b.x, b.y, 25)) continue;
+        const speed = Math.hypot(b.vx, b.vy) || 1;
+        this.fx.point(
+          b.x,
+          b.y,
+          b.enemy ? 16 : b.kind === "missile" ? 24 : 30,
+          b.enemy ? 0 : b.kind === "missile" ? 2 : 1,
+          b.vx / speed,
+          b.vy / speed,
+        );
+      }
+      return;
+    }
+    c.globalCompositeOperation = "lighter";
+    const enemy = this.cache.glow("#ffbe59"),
+      shot = this.cache.glow("#81cfff");
+    for (const b of w.bullets) {
+      if (b.life <= 0 || !visible(b.x, b.y, 20)) continue;
+      const size = b.enemy ? 15 : 11;
+      c.drawImage(
+        b.enemy ? enemy : shot,
+        b.x - size / 2,
+        b.y - size / 2,
+        size,
+        size,
+      );
+    }
+    c.globalCompositeOperation = "source-over";
+  }
+
+  ultimate(c, w) {
+    const u = w.ultimate,
+      p = w.player;
+    if (u) {
+      c.save();
+      c.translate(p.x, p.y);
+      if (u.kind === "overdrive") {
+        for (let i = -1; i <= 1; i++) {
+          const a = p.angle + i * 0.1;
+          c.strokeStyle = "#ff653a77";
+          c.lineWidth = 30;
+          c.beginPath();
+          c.moveTo(0, 0);
+          c.lineTo(Math.cos(a) * 1000, Math.sin(a) * 1000);
+          c.stroke();
+          c.strokeStyle = "#fff5bd";
+          c.lineWidth = 5;
+          c.stroke();
+        }
+      } else {
+        const colors = {
+          stasis: "#b9a6ff",
+          repair: "#a1ffe9",
+          nova: "#ffb0cd",
+        };
+        c.strokeStyle = colors[u.kind];
+        c.lineWidth = 3;
+        for (let i = 0; i < 3; i++) {
+          c.beginPath();
+          c.arc(
+            0,
+            0,
+            80 + i * 55 + Math.sin(w.time * 3) * 10,
+            w.time * (i % 2 ? 1 : -1),
+            w.time * (i % 2 ? 1 : -1) + Math.PI * 1.6,
+          );
+          c.stroke();
+        }
+      }
+      c.restore();
+    }
+    for (const st of w.strikes || []) {
+      const r = st.r * (1 - st.delay / 0.65);
+      c.strokeStyle = "#ffb9df";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(st.x, st.y, Math.max(5, r), 0, Math.PI * 2);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(st.x - 20, st.y);
+      c.lineTo(st.x + 20, st.y);
+      c.moveTo(st.x, st.y - 20);
+      c.lineTo(st.x, st.y + 20);
+      c.stroke();
+    }
+  }
+  pointer(c) {
+    if (!this.input?.pointer) return;
+    const rect = this.canvas.getBoundingClientRect(),
+      x = this.input.pointer.x - rect.left,
+      y = this.input.pointer.y - rect.top;
+    c.strokeStyle = "#b2f5e460";
+    c.lineWidth = 1;
+    c.beginPath();
+    c.arc(x, y, 45, 0, Math.PI * 2);
+    c.stroke();
+    c.fillStyle = "#b2f5e433";
+    c.beginPath();
+    c.arc(
+      x + this.input.vector.x * 35,
+      y + this.input.vector.y * 35,
+      17,
+      0,
+      Math.PI * 2,
+    );
+    c.fill();
   }
 }

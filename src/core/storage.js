@@ -1,4 +1,10 @@
 import {
+  cleanAffection,
+  interact,
+  readMemory,
+  affectionRecord,
+} from "./affection.js";
+import {
   RESEARCH,
   ACHIEVEMENTS,
   researchCost,
@@ -14,6 +20,8 @@ export const defaultSave = () => ({
   clears: 0,
   history: [],
   bond: {},
+  affection: {},
+  quality: "auto",
   mode: "campaign",
   difficulty: "normal",
   credits: 0,
@@ -62,6 +70,11 @@ export function sanitizeSave(raw) {
   );
   for (const p of PILOTS)
     d.bond[p.id] = Math.max(0, Math.min(100000, Number(raw.bond?.[p.id]) || 0));
+  for (const p of PILOTS)
+    d.affection[p.id] = cleanAffection(raw.affection?.[p.id], d.bond[p.id]);
+  d.quality = ["auto", "high", "performance"].includes(raw.quality)
+    ? raw.quality
+    : "auto";
   d.mode = raw.mode === "endless" ? "endless" : "campaign";
   d.difficulty = ["story", "normal", "expert"].includes(raw.difficulty)
     ? raw.difficulty
@@ -142,6 +155,16 @@ export class SaveStore {
     this.write();
     return true;
   }
+  interact(id, kind, gift, day) {
+    const r = interact(this.data, id, kind, gift, day);
+    if (r.ok) this.write();
+    return r;
+  }
+  memory(id, at) {
+    const r = readMemory(this.data, id, at);
+    if (r.ok && r.fresh) this.write();
+    return r;
+  }
   settle(result) {
     this.data.credits += result.reward;
     this.data.bestWave = Math.max(this.data.bestWave, result.wave);
@@ -155,6 +178,20 @@ export class SaveStore {
         (this.data.bond[result.pilot] || 0) +
         Math.floor((result.kills || 0) / 5) +
         result.wave * 4;
+    if (result.pilot) {
+      const a = affectionRecord(this.data, result.pilot);
+      a.points = Math.min(
+        100,
+        a.points +
+          Math.min(
+            18,
+            2 +
+              Math.floor((result.kills || 0) / 80) +
+              (result.bossKills || 0) * 3 +
+              (result.clear ? 5 : 0),
+          ),
+      );
+    }
     this.data.history.unshift({
       score: result.score,
       wave: result.wave,

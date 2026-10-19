@@ -1,3 +1,4 @@
+import { compact } from "../core/pool.js";
 import { RULES, ENEMIES, MAPS } from "../content/catalog.js";
 import { behaviors } from "./patterns.js";
 export function director(w, dt) {
@@ -23,7 +24,7 @@ export function director(w, dt) {
       w.mapIndex = (w.mapIndex + 1) % MAPS.length;
       w.map = MAPS[w.mapIndex];
       w.enemies = [];
-      w.bullets = [];
+      w.resetProjectiles();
       w.drops = [];
       w.events.emit("map", w.map);
     }
@@ -143,7 +144,7 @@ export function weapons(w, dt) {
           p.x + Math.cos(a) * (w.evolutions.includes("singularity") ? 125 : 85),
         y =
           p.y + Math.sin(a) * (w.evolutions.includes("singularity") ? 125 : 85);
-      for (const e of w.grid.query(x, y, 40)) {
+      for (const e of w.grid.query(x, y, 40, w.candidates)) {
         if (Math.hypot(e.x - x, e.y - y) < e.r + 12)
           w.hit(e, p.damage * dt * 3);
       }
@@ -178,14 +179,18 @@ export function projectiles(w, dt) {
     if (b.life <= 0) continue;
     const slow = b.enemy && w.stasis > 0 ? 0.25 : 1;
     if (b.kind === "missile") {
-      let best = null,
-        dist = Infinity;
-      for (const e of w.enemies) {
-        const d = Math.hypot(e.x - b.x, e.y - b.y);
-        if (e.hp > 0 && d < dist) {
-          best = e;
-          dist = d;
+      let best = b.target;
+      if (!best || best.hp <= 0) {
+        let dist = Infinity;
+        best = null;
+        for (const e of w.enemies) {
+          const d = (e.x - b.x) ** 2 + (e.y - b.y) ** 2;
+          if (e.hp > 0 && d < dist) {
+            best = e;
+            dist = d;
+          }
         }
+        b.target = best;
       }
       if (best) {
         const a = Math.atan2(best.y - b.y, best.x - b.x);
@@ -213,11 +218,12 @@ export function projectiles(w, dt) {
     b.x += b.vx * dt * slow;
     b.y += b.vy * dt * slow;
     const hits = b.enemy
-      ? [w.player]
+      ? w.playerTarget
       : w.grid.query(
           (oldX + b.x) / 2,
           (oldY + b.y) / 2,
           Math.hypot(b.x - oldX, b.y - oldY) / 2 + 70,
+          w.candidates,
         );
     for (const e of hits) {
       if (e.hp <= 0 || b.hit.has(e.id)) continue;
@@ -246,7 +252,15 @@ export function projectiles(w, dt) {
       }
     }
   }
-  w.bullets = w.bullets.filter((b) => b.life > 0);
+  compact(
+    w.bullets,
+    (b) => b.life > 0,
+    (b) => {
+      if (b.enemy) w.enemyBulletCount--;
+      else w.playerBulletCount--;
+      w.bulletPool.release(b);
+    },
+  );
 }
 export function pickups(w, dt) {
   const p = w.player;
@@ -264,7 +278,7 @@ export function pickups(w, dt) {
       w.events.emit("pickup", {});
     }
   }
-  w.drops = w.drops.filter((d) => !d.dead);
+  compact(w.drops, (d) => !d.dead);
   if (w.xp >= w.nextXp) {
     w.xp -= w.nextXp;
     w.level++;
@@ -273,7 +287,8 @@ export function pickups(w, dt) {
   }
 }
 export function cleanup(w, dt) {
-  w.enemies = w.enemies.filter(
+  compact(
+    w.enemies,
     (e) =>
       e.hp > 0 &&
       (e.kind === "boss" ||
@@ -286,10 +301,19 @@ export function cleanup(w, dt) {
     p.vx *= 0.97;
     p.vy *= 0.97;
   }
-  w.particles = w.particles.filter((p) => p.life > 0);
+  compact(w.particles, (p) => p.life > 0);
   for (const r of w.rings) {
     r.life -= dt;
     r.r += r.speed * dt;
   }
-  w.rings = w.rings.filter((r) => r.life > 0);
+  compact(w.rings, (r) => r.life > 0);
+  for (const e of w.explosions) e.life -= dt;
+  compact(w.explosions, (e) => e.life > 0);
+  for (const n of w.damageNumbers) {
+    n.life -= dt;
+    n.y -= 25 * dt;
+  }
+  compact(w.damageNumbers, (n) => n.life > 0);
+  w.comboTime = Math.max(0, w.comboTime - dt);
+  if (!w.comboTime) w.combo = 0;
 }

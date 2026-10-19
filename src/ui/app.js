@@ -1,3 +1,4 @@
+import { BondUI } from "./bond.js";
 import { portraitStyle } from "./portraits.js";
 import { MetaUI } from "./meta.js";
 import { SUPPLIES } from "../content/encounters.js";
@@ -60,12 +61,19 @@ export class App {
       if (document.hidden) this.pause(false);
     });
     window.addEventListener("blur", () => this.pause(false));
+    this.bond = new BondUI(this);
     this.meta = new MetaUI(this);
     this.meta.updateLabel();
     this.applySettings();
     this.hangar();
   }
   applySettings() {
+    const quality = this.store.data.quality || "auto";
+    if (this.renderer.quality !== quality) {
+      this.renderer.quality = quality;
+      this.renderer.resolution = 1;
+      this.renderer.resize();
+    }
     this.audio.enabled = this.store.data.sound;
     this.audio.music = this.store.data.music;
     this.renderer.reduced =
@@ -103,7 +111,7 @@ export class App {
     const owned = this.store.data.owned.includes(s.id);
     $("shipList").innerHTML = SHIPS.map(
       (ship) =>
-        `<button class="ship-option ${ship.id === s.id ? "selected" : ""}" data-ship="${ship.id}" aria-label="選擇 ${ship.name}${this.store.data.owned.includes(ship.id) ? "" : `，${ship.cost} 信用點`}" aria-pressed="${ship.id === s.id}"><svg viewBox="-30 -30 60 60"><path d="${ship.shape === 0 ? "M0 -25 9 0 25 20 7 15 0 22 -7 15 -25 20 -9 0Z" : ship.shape === 1 ? "M0 -28 8 0 23 24 0 10 -23 24 -8 0Z" : "M0 -25 19 -9 27 15 8 23 0 12 -8 23 -27 15 -19 -9Z"}"/></svg><span>${ship.name}</span>${this.store.data.owned.includes(ship.id) ? "" : `<em>✧ ${ship.cost}</em>`}</button>`,
+        `<button class="ship-option ${ship.id === s.id ? "selected" : ""}" data-ship="${ship.id}" aria-label="選擇 ${ship.name}${this.store.data.owned.includes(ship.id) ? "" : `，${ship.cost} 信用點`}" aria-pressed="${ship.id === s.id}"><div class="ship-icon" style="background-position:${(ship.shape % 3) * 50}% ${Math.floor(ship.shape / 3) * 100}%"></div><span>${ship.name}</span>${this.store.data.owned.includes(ship.id) ? "" : `<em>✧ ${ship.cost}</em>`}</button>`,
     ).join("");
     document.querySelectorAll("[data-ship]").forEach(
       (el) =>
@@ -193,7 +201,10 @@ export class App {
     $("hudShip").textContent = w.ship.name;
     $("skillName").textContent = w.pilot.ability;
     const i = PILOTS.indexOf(w.pilot);
-    $("commsPortrait").style.cssText = portraitStyle(w.pilot);
+    $("commsPortrait").style.cssText = portraitStyle({
+      ...w.pilot,
+      portrait: w.pilot.radioPortrait || w.pilot.portrait,
+    });
     $("commsName").textContent = `${w.pilot.en} / ${w.pilot.name}`;
     w.events.on("intermission", () => this.intermission());
     w.events.on("evolution", (e) => {
@@ -239,15 +250,30 @@ export class App {
       this.comms("首領擊破！航道已開啟，準備躍遷。");
     });
     w.events.on("skill", () => {
+      this.ultimateCutin();
       this.comms(w.pilot.lines[2]);
       this.audio.tone(800, 0.4, "triangle", 0.07);
     });
     w.events.on("defeat", (r) => this.defeat(r));
     this.comms(w.pilot.lines[0]);
-    this.banner("SORTIE COMMENCED", "第七軌道 · 蒼藍星環");
+    this.banner("SORTIE COMMENCED", "海岸防衛線 · 蒼藍海岸");
     this.updateBuild();
     this.lastHud = 0;
     this.renderHud();
+  }
+  ultimateCutin() {
+    const p = this.world.pilot;
+    $("ultimateArt").style.cssText = portraitStyle({
+      ...p,
+      portrait: p.burstPortrait || p.ultimatePortrait || p.portrait,
+    });
+    $("ultimatePilot").textContent = `${p.en} / ${p.name}`;
+    $("ultimateName").textContent = p.ability;
+    $("ultimateOverlay").style.setProperty("--burst-color", p.color);
+    $("ultimateOverlay").classList.remove("active");
+    void $("ultimateOverlay").offsetWidth;
+    $("ultimateOverlay").classList.add("active");
+    this.ultimateUntil = performance.now() + 1900;
   }
   comms(line) {
     $("commsLine").textContent = line;
@@ -273,6 +299,7 @@ export class App {
   }
   closeModal() {
     this.menu = null;
+    $("credits").textContent = this.store.data.credits.toLocaleString();
     $("overlay").classList.add("hidden");
     $("overlayContent").innerHTML = "";
     if (this.world?.state === "playing") this.input.active = true;
@@ -355,15 +382,28 @@ export class App {
   }
   settings(inGame = false) {
     this.modal(
-      `<div class="panel"><div class="modal-eyebrow">SYSTEM CONFIGURATION</div><h2 class="modal-title">系統設定</h2><div class="settings-row"><div>作戰音效<small>射擊、升級與事件提示音</small></div><button id="soundToggle" class="toggle"></button></div><div class="settings-row"><div>原創星海配樂<small>隨戰況變化的合成器音樂</small></div><button id="musicToggle" class="toggle"></button></div><div class="settings-row"><div>減少動態效果<small>減少粒子與閃光，關閉鏡頭震動</small></div><button id="reducedToggle" class="toggle"></button></div><p class="modal-subtitle">進度僅保存在這個瀏覽器；戰鬥中途不存檔。</p><div class="save-actions"><button id="exportSave" class="secondary-button">匯出存檔</button><label class="secondary-button">匯入存檔<input id="importSave" type="file" accept="application/json,.json" hidden></label></div><div class="modal-actions"><button id="closeSettings" class="primary-button">返回</button></div></div>`,
+      `<div class="panel"><div class="modal-eyebrow">SYSTEM CONFIGURATION</div><h2 class="modal-title">系統設定</h2><div class="settings-row"><div>作戰音效<small>射擊、升級與事件提示音</small></div><button id="soundToggle" class="toggle"></button></div><div class="settings-row"><div>原創星海配樂<small>隨戰況變化的合成器音樂</small></div><button id="musicToggle" class="toggle"></button></div><div class="settings-row"><div>畫質與效能<small>自動調整只影響顯示，不刪除敵彈或碰撞</small></div><button id="qualityToggle" class="toggle"></button></div><div class="settings-row"><div>減少動態效果<small>減少粒子與閃光，關閉鏡頭震動</small></div><button id="reducedToggle" class="toggle"></button></div><p class="modal-subtitle">進度僅保存在這個瀏覽器；戰鬥中途不存檔。</p><div class="save-actions"><button id="exportSave" class="secondary-button">匯出存檔</button><label class="secondary-button">匯入存檔<input id="importSave" type="file" accept="application/json,.json" hidden></label></div><div class="modal-actions"><button id="closeSettings" class="primary-button">返回</button></div></div>`,
       "settings",
     );
     const update = () => {
+      $("qualityToggle").textContent = {
+        auto: "自動",
+        high: "高畫質",
+        performance: "效能",
+      }[this.store.data.quality || "auto"];
       $("musicToggle").textContent = this.store.data.music ? "ON" : "OFF";
       $("soundToggle").textContent = this.store.data.sound ? "ON" : "OFF";
       $("reducedToggle").textContent = this.store.data.reduced ? "ON" : "OFF";
     };
     update();
+    $("qualityToggle").onclick = () => {
+      const modes = ["auto", "high", "performance"];
+      this.store.data.quality =
+        modes[(modes.indexOf(this.store.data.quality || "auto") + 1) % 3];
+      this.applySettings();
+      this.save();
+      update();
+    };
     $("musicToggle").onclick = () => {
       this.store.data.music = !this.store.data.music;
       this.applySettings();
@@ -442,8 +482,10 @@ export class App {
     $("timeText").textContent = `${pad(w.time / 60)}:${pad(w.time % 60)}`;
     $("scoreText").textContent = pad(w.score, 5);
     $("killsText").textContent = `${w.kills} 擊破`;
+    $("comboHud").classList.toggle("visible", w.combo >= 5);
+    $("comboCount").textContent = `${w.combo} ×`;
     $("skillCooldown").textContent =
-      p.cooldown > 0 ? `${Math.ceil(p.cooldown)}s` : "READY";
+      p.cooldown > 0 ? `${Math.ceil(p.cooldown)}s` : "BURST READY";
     $("dashCooldown").textContent =
       p.dash > 0 ? `${p.dash.toFixed(1)}s` : "SHIFT";
     $("dashButton").disabled = p.dash > 0 || w.state !== "playing";
@@ -457,6 +499,8 @@ export class App {
     }
   }
   frame(now) {
+    if (now > (this.ultimateUntil || 0))
+      $("ultimateOverlay").classList.remove("active");
     this.audio.scene = this.world?.state === "playing" ? "battle" : "hangar";
     this.audio.boss = !!this.world?.enemies.some(
       (e) => e.kind === "boss" && e.hp > 0,
@@ -479,7 +523,9 @@ export class App {
       glow.addColorStop(1, s.color + "00");
       c.fillStyle = glow;
       c.fillRect(-200, -200, 400, 400);
-      drawShip(c, 0, 0, -Math.PI / 2, s.color, s.shape, 106, now * 0.001);
+      const model = this.renderer.cache.sprite("preview", s.shape);
+      if (model) c.drawImage(model, -155, -155, 310, 310);
+      else drawShip(c, 0, 0, -Math.PI / 2, s.color, s.shape, 106, now * 0.001);
       c.restore();
     }
   }

@@ -17,6 +17,8 @@
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 3 58 54 32 43 6 54Z' fill='%2374f7ed'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="./style.css" />
+    <link rel="preload" as="image" href="./assets/pilots-radio.webp" />
+    <link rel="preload" as="image" href="./assets/pilots-burst.webp" />
   </head>
   <body>
     <canvas
@@ -32,7 +34,7 @@
         >
         <div class="top-status">
           <span class="online-dot"></span> SYSTEM ONLINE
-          <span class="version">/ VER. 1.0</span>
+          <span class="version">/ VER. 1.5</span>
         </div>
         <div class="currency">
           <span>✧</span><b id="credits">0</b><small>信用點</small>
@@ -44,6 +46,7 @@
       <nav class="hangar-nav" aria-label="機庫功能">
         <button id="modeButton"></button>
         <div>
+          <button id="bondButton">♡ 駕駛員休息室</button>
           <button id="researchButton">⌘ 研發中樞</button
           ><button id="achievementsButton">✦ 星海勳章</button
           ><button id="archiveButton">▤ 情報資料庫</button>
@@ -67,7 +70,7 @@
             <span class="mission-icon">◎</span>
             <div>
               <small>當前作戰空域</small
-              ><strong>蒼藍星環 <span>AETHER RIFT</span></strong>
+              ><strong>蒼藍海岸 <span>AETHER RIFT</span></strong>
               <p>無盡作戰 / 每 5 波遭遇首領</p>
             </div>
             <span class="mission-no">01</span>
@@ -75,7 +78,7 @@
           <div class="controls-hint">
             <kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
             <p>
-              移動 · 自動射擊<br /><b>SPACE</b> 駕駛員技能 · <b>ESC</b> 暫停
+              移動 · 自動射擊<br /><b>SPACE</b> 駕駛員大絕招 · <b>ESC</b> 暫停
             </p>
           </div>
         </section>
@@ -128,7 +131,7 @@
         </aside>
       </div>
       <footer class="hangar-footer">
-        <span>第七軌道防衛局 <b>／</b> ORBITAL DEFENSE DIVISION</span
+        <span>海岸空防司令部 <b>／</b> ORBITAL DEFENSE DIVISION</span
         ><button id="helpButton">操作指南 <span>↗</span></button
         ><span class="footer-right">EVERY FLIGHT IS A NEW BEGINNING.</span>
       </footer>
@@ -177,12 +180,27 @@
           <p id="commsLine"></p>
         </div>
       </div>
+      <div id="comboHud" class="combo-hud">
+        <b id="comboCount"></b><span>CHAIN / 連鎖擊破</span>
+      </div>
+      <div id="ultimateOverlay" class="ultimate-overlay">
+        <div class="ultimate-band"></div>
+        <div id="ultimateArt" class="ultimate-art portrait"></div>
+        <div class="ultimate-title">
+          <small id="ultimatePilot"></small><strong id="ultimateName"></strong
+          ><span>ULTIMATE BURST</span>
+        </div>
+      </div>
       <div id="buildIcons" class="build-icons"></div>
       <div class="skill-wrap">
         <span id="skillName"></span
-        ><button id="skillButton" class="skill-button" aria-label="駕駛員技能">
+        ><button
+          id="skillButton"
+          class="skill-button"
+          aria-label="發動駕駛員大絕招"
+        >
           <strong>✦</strong><small id="skillCooldown">READY</small></button
-        ><small>SPACE / 點擊</small>
+        ><small>大絕招 · SPACE / 點擊</small>
       </div>
       <button id="dashButton" class="dash-button" aria-label="閃避衝刺">
         »<small id="dashCooldown">SHIFT</small>

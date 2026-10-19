@@ -156,6 +156,7 @@ test("high density simulation stays bounded with finite positions and health", (
   applyUpgrade(w, "drone");
   for (let i = 0; i < 7200; i++) {
     if (w.state === "upgrade") w.choose(w.options[0].id);
+    if (w.state === "intermission") w.supply("repair");
     w.step(1 / 60, { x: Math.sin(i / 180), y: Math.cos(i / 180) });
   }
   assert.ok(w.enemies.length <= RULES.maxEnemies);
@@ -274,4 +275,113 @@ test("boss experience is credited before transition clears battlefield drops", (
   const before = w.xp;
   w.hit(boss, 1e9);
   assert.equal(w.xp - before, boss.xp * w.player.xpFactor);
+});
+test("affection migrates existing bond and daily actions are atomic with one-time stories", () => {
+  const s = new SaveStore({
+    getItem: () =>
+      JSON.stringify({
+        version: 1,
+        credits: 150,
+        owned: ["kestrel"],
+        bond: { akari: 200 },
+      }),
+    setItem: () => {},
+  });
+  assert.equal(s.data.affection.akari.points, 20);
+  const malformed = sanitizeSave({
+    version: 1,
+    affection: { akari: { points: 30, chats: "broken", gifts: -2 } },
+  });
+  assert.equal(malformed.affection.akari.chats, 0);
+  assert.equal(malformed.affection.akari.gifts, 0);
+  assert.equal(s.interact("__proto__", "chat").ok, false);
+  assert.equal(s.memory("constructor", 0).ok, false);
+  const credit = s.data.credits;
+  assert.ok(s.interact("akari", "chat", null, "2026-10-19").ok);
+  assert.ok(s.interact("akari", "chat", null, "2026-10-19").ok);
+  assert.ok(s.interact("akari", "chat", null, "2026-10-19").ok);
+  assert.equal(s.interact("akari", "chat", null, "2026-10-19").ok, false);
+  assert.equal(s.data.credits, credit);
+  assert.ok(s.interact("akari", "gift", "cake", "2026-10-19").ok);
+  assert.equal(s.data.credits, credit - 25);
+  const before = s.data.credits;
+  assert.equal(s.memory("akari", 20).fresh, true);
+  assert.equal(s.data.credits, before + 35);
+  assert.equal(s.memory("akari", 20).fresh, false);
+  assert.equal(s.data.credits, before + 35);
+  assert.equal(s.memory("akari", 100).ok, false);
+  assert.ok(s.interact("akari", "chat", null, "2026-10-20").ok);
+  s.data.credits = 0;
+  const giftCount = s.data.affection.akari.gifts;
+  assert.equal(s.interact("akari", "gift", "cake", "2026-10-20").ok, false);
+  assert.equal(s.data.affection.akari.gifts, giftCount);
+});
+test("all four ultimates produce distinct persistent combat effects and clear hostile bullets", () => {
+  for (const [pilot, kind] of [
+    ["akari", "overdrive"],
+    ["rin", "stasis"],
+    ["yuki", "repair"],
+    ["mio", "nova"],
+  ]) {
+    const w = new World({ pilot });
+    const e = w.spawn("tank");
+    e.x = 160;
+    e.y = 0;
+    w.enemyBullet(e, Math.PI, 100);
+    w.player.hp = 30;
+    assert.ok(w.skill());
+    assert.equal(w.ultimate.kind, kind);
+    assert.ok(w.bullets.every((b) => !b.enemy || b.life <= 0));
+    assert.ok(w.player.invuln >= 2);
+    if (pilot === "mio") assert.equal(w.strikes.length, 8);
+    if (pilot === "yuki") assert.ok(w.player.hp > 30);
+    w.step(1 / 60);
+    assert.ok(w.ultimate.remaining > 0);
+  }
+});
+test("projectile pools reuse bullets and clearing during boss impact does not double release", () => {
+  const w = new World();
+  const e = w.spawn("scout");
+  e.x = 300;
+  e.y = 0;
+  for (let i = 0; i < 100; i++) w.enemyBullet(e, 0, 10);
+  for (const b of w.bullets) b.life = 0.001;
+  w.step(0.02);
+  const created = w.bulletPool.created;
+  assert.equal(w.enemyBulletCount, 0);
+  for (let i = 0; i < 80; i++) w.enemyBullet(e, 0, 10);
+  assert.ok(w.bulletPool.created <= created + 1);
+  w.resetProjectiles();
+  assert.equal(w.enemyBulletCount, 0);
+  assert.equal(w.bullets.length, 0);
+  assert.equal(new Set(w.bulletPool.free).size, w.bulletPool.free.length);
+});
+test("ten-minute endless stress keeps every transient collection and pool bounded", () => {
+  const w = new World({ mode: "endless", pilot: "akari", seed: 31337 });
+  w.wave = 18;
+  w.player.hp = w.player.maxHp = 1e8;
+  w.player.damage = 95;
+  applyUpgrade(w, "missile");
+  applyUpgrade(w, "drone");
+  let maxBullets = 0,
+    maxDrops = 0;
+  for (let i = 0; i < 36000; i++) {
+    if (w.state === "upgrade")
+      w.choose(w.options.find((u) => u.id === "damage")?.id || w.options[0].id);
+    if (w.state === "intermission") w.supply("repair");
+    if (i % 1200 === 0) w.skill();
+    w.step(1 / 60, { x: Math.sin(i / 240), y: Math.cos(i / 240) });
+    maxBullets = Math.max(maxBullets, w.bullets.length);
+    maxDrops = Math.max(maxDrops, w.drops.length);
+  }
+  assert.ok(w.time > 590);
+  assert.ok(w.wave > 25);
+  assert.ok(maxBullets <= RULES.maxBullets);
+  assert.ok(maxDrops <= 750);
+  assert.ok(w.explosions.length <= 48);
+  assert.ok(w.rings.length <= 40);
+  assert.ok(w.damageNumbers.length <= 32);
+  assert.ok(w.bulletPool.free.length <= 2048);
+  assert.ok(w.bulletPool.created <= RULES.maxBullets + 500);
+  assert.equal(new Set(w.bulletPool.free).size, w.bulletPool.free.length);
 });
