@@ -44,6 +44,9 @@ export const WEAPON_TUNING = {
     multiDamage: 0.35,
     pierceDamage: 0.12,
     tracking: 7,
+    waveAmplitude: 24,
+    waveSpeed: 7,
+    waveCycles: 2,
   },
   cannon: { type: "shell", speed: 440, damage: 1.7, spacing: 0.08 },
   spread: {

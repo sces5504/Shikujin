@@ -65,9 +65,16 @@ export const mainWeapons = {
     for (let i = 0; i <= 20; i++) {
       const t = i / 20,
         q = 1 - t;
+      // A traveling plasma wave keeps a locked ribbon alive, with zero endpoint displacement.
+      const wave =
+        Math.sin(Math.PI * t) ** 2 *
+        Math.sin(
+          w.time * tuning.waveSpeed - t * Math.PI * 2 * tuning.waveCycles,
+        ) *
+        Math.min(tuning.waveAmplitude, length * 0.1);
       points.push({
-        x: q * q * p.x + 2 * q * t * cx + t * t * ex,
-        y: q * q * p.y + 2 * q * t * cy + t * t * ey,
+        x: q * q * p.x + 2 * q * t * cx + t * t * ex - Math.sin(p.angle) * wave,
+        y: q * q * p.y + 2 * q * t * cy + t * t * ey + Math.cos(p.angle) * wave,
       });
     }
     const last = points.at(-1),

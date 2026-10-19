@@ -245,3 +245,18 @@ test("two-minute combined build simulation keeps mines, arcs and projectiles bou
   assert.equal(w.state, "playing");
   assert.ok(Number.isFinite(w.player.hp));
 });
+
+test("locked plasma ribbon flows over time while its endpoint remains on target", () => {
+  const w = new World({ ship: "wraith" }),
+    e = target(w, 400);
+  w.player.angle = 0;
+  fireMainWeapon(w, e, 1 / 60);
+  const a = w.beams[0].points.map((p) => ({ ...p }));
+  w.time = 0.2;
+  fireMainWeapon(w, e, 1 / 60);
+  const b = w.beams[0].points;
+  assert.ok(a.some((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y) > 2));
+  assert.equal(b[0].x, w.player.x);
+  assert.equal(b[0].y, w.player.y);
+  assert.ok(Math.hypot(b[20].x - e.x, b[20].y - e.y) < 0.001);
+});
