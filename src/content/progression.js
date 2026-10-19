@@ -158,7 +158,7 @@ export const EVOLUTIONS = [
   {
     id: "prism",
     name: "萬華稜鏡",
-    description: "分裂光束 3 + 相位穿透 2：依武器擴充兩級，傷害 +30%",
+    description: "武裝擴充 3 + 相位穿透 2：依武器擴充兩級，傷害 +30%",
     needs: { multi: 3, pierce: 2 },
     color: "#bfa0ff",
     icon: "⋔",
