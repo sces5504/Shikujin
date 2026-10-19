@@ -63,7 +63,10 @@ try {
       });
     w.state = "paused";
     const cpu = [],
-      render = [];
+      render = [],
+      submit = [],
+      canvasSync = [],
+      gpuSync = [];
     for (let i = 0; i < 72; i++) {
       w.state = "playing";
       const a = performance.now();
@@ -72,9 +75,15 @@ try {
       w.state = "paused";
       const t = performance.now();
       app.renderer.render(w, i / 60);
+      const afterSubmit = performance.now();
       app.renderer.ctx.getImageData(0, 0, 1, 1);
+      const afterCanvas = performance.now();
       app.renderer.fx?.readPixels();
-      const elapsed = performance.now() - t;
+      const afterGpu = performance.now();
+      submit.push(afterSubmit - t);
+      canvasSync.push(afterCanvas - afterSubmit);
+      gpuSync.push(afterGpu - afterCanvas);
+      const elapsed = afterGpu - t;
       render.push(elapsed);
       app.renderer.adapt(elapsed, true);
       if (i % 4 === 0) await new Promise((r) => setTimeout(r, 0));
@@ -94,6 +103,9 @@ try {
       glError: app.renderer.fx?.gl?.getError(),
       renderSubmit: app.renderer.stats.renderMs,
       simulationMs: summarize(cpu.slice(-24)),
+      submitMs: summarize(submit.slice(-24)),
+      canvasSyncMs: summarize(canvasSync.slice(-24)),
+      gpuSyncMs: summarize(gpuSync.slice(-24)),
       renderAndRasterMs: summarize(render.slice(-24)),
       enemies: w.enemies.length,
       bullets: w.bullets.length,

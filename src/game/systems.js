@@ -1,3 +1,4 @@
+import { fireMainWeapon } from "./weapons.js";
 import { compact } from "../core/pool.js";
 import { RULES, ENEMIES, MAPS } from "../content/catalog.js";
 import { behaviors } from "./patterns.js";
@@ -81,7 +82,7 @@ export function movement(w, dt, input) {
 }
 export function weapons(w, dt) {
   const p = w.player;
-  p.fire -= dt;
+
   let target = null,
     dist = Infinity;
   for (const e of w.enemies) {
@@ -94,23 +95,12 @@ export function weapons(w, dt) {
     }
   }
   if (target) p.angle = Math.atan2(target.y - p.y, target.x - p.x);
-  if (target && p.fire <= 0) {
-    for (let i = 0; i < p.multi; i++)
-      w.playerBullet(
-        p.x,
-        p.y,
-        p.angle + (i - (p.multi - 1) / 2) * 0.14,
-        620,
-        p.damage,
-        p.pierce,
-        "shot",
-      );
-    p.fire = p.interval / (p.overdrive > 0 ? 2 : 1);
-    w.events.emit("shoot", {});
-  }
+  fireMainWeapon(w, target, dt);
   w.missileTimer -= dt;
   const missiles =
-    (w.upgrades.missile || 0) + (w.evolutions.includes("seraph") ? 3 : 0);
+    (w.upgrades.missile || 0) +
+    (w.ship.weapon === "carrier" ? 1 + p.multi : 0) +
+    (w.evolutions.includes("seraph") ? 3 : 0);
   if (missiles && target && w.missileTimer <= 0) {
     for (let i = 0; i < missiles; i++)
       w.playerBullet(
@@ -152,13 +142,14 @@ export function weapons(w, dt) {
   }
 }
 export function enemies(w, dt) {
-  const slow = w.stasis > 0 ? 0.25 : 1;
+  const slow = w.stasis > 0 ? 0 : 1;
   for (const e of w.enemies) {
     if (e.hp <= 0) continue;
     e.age += dt * slow;
     e.fire -= dt * slow;
     e.flash = Math.max(0, e.flash - dt);
     if (
+      slow &&
       e.kind === "boss" &&
       Math.hypot(e.x - w.player.x, e.y - w.player.y) > 1300
     ) {
@@ -169,15 +160,16 @@ export function enemies(w, dt) {
     const dx = w.player.x - e.x,
       dy = w.player.y - e.y,
       d = Math.hypot(dx, dy) || 1;
-    behaviors[e.behavior](w, e, dt * slow, dx, dy, d);
+    if (slow) behaviors[e.behavior](w, e, dt, dx, dy, d);
     if (d < e.r + w.player.r) w.hurt(e.kind === "boss" ? 35 : 15);
   }
 }
 export function projectiles(w, dt) {
   for (const b of w.bullets) {
-    b.life -= dt;
+    const frozen = b.enemy && w.stasis > 0;
+    b.life -= frozen ? 0 : dt;
     if (b.life <= 0) continue;
-    const slow = b.enemy && w.stasis > 0 ? 0.25 : 1;
+    const slow = frozen ? 0 : 1;
     if (b.kind === "missile") {
       let best = b.target;
       if (!best || best.hp <= 0) {
@@ -241,8 +233,26 @@ export function projectiles(w, dt) {
         if (b.enemy) w.hurt(b.damage);
         else {
           w.hit(e, b.damage);
-          if (b.kind === "missile")
-            w.blast(b.x, b.y, 65, b.damage * 0.45, "#ffc18b");
+          if (b.kind === "missile" || b.kind === "shell") {
+            const shell = b.kind === "shell",
+              radius = shell ? 105 + w.player.pierce * 20 : 65;
+            w.blast(
+              b.x,
+              b.y,
+              radius,
+              b.damage * (shell ? 0.85 : 0.45),
+              "#ffc18b",
+            );
+            if (w.impacts.length < 24)
+              w.impacts.push({
+                x: b.x,
+                y: b.y,
+                r: radius,
+                kind: "shell",
+                life: 0.6,
+                maxLife: 0.6,
+              });
+          }
         }
         b.pierce--;
         if (b.pierce < 0) {
@@ -309,6 +319,8 @@ export function cleanup(w, dt) {
   compact(w.rings, (r) => r.life > 0);
   for (const e of w.explosions) e.life -= dt;
   compact(w.explosions, (e) => e.life > 0);
+  for (const impact of w.impacts) impact.life -= dt;
+  compact(w.impacts, (i) => i.life > 0);
   for (const n of w.damageNumbers) {
     n.life -= dt;
     n.y -= 25 * dt;

@@ -75,6 +75,8 @@ export class World {
     this.enemyBulletCount = 0;
     this.playerBulletCount = 0;
     this.strikes = [];
+    this.beams = [];
+    this.impacts = [];
     this.ultimate = null;
     this.combo = 0;
     this.comboTime = 0;
@@ -190,13 +192,14 @@ export class World {
       kind,
       enemy: false,
       crit,
-      r: kind === "missile" ? 6 : 4,
+      r: kind === "shell" ? 9 : kind === "missile" ? 6 : 4,
       life: 2,
       grazed: false,
       target: null,
     });
     this.bullets.push(b);
     this.playerBulletCount++;
+    return b;
   }
   enemyBullet(e, angle, speed) {
     if (
@@ -293,7 +296,8 @@ export class World {
   }
   hurt(damage) {
     const p = this.player;
-    if (p.invuln > 0 || this.state !== "playing") return;
+    if (p.invuln > 0 || this.debugInvincible || this.state !== "playing")
+      return;
     damage *= this.difficulty.damage;
     const absorbed = Math.min(p.shield, damage);
     p.shield -= absorbed;
@@ -408,11 +412,13 @@ export class World {
     this.events.emit("supply", id);
     return true;
   }
-  finish(clear = false) {
+  finish(clear = false, reason = clear ? "clear" : "defeat") {
     if (this.state === "defeat") return;
     this.state = "defeat";
     this.result = {
       clear,
+      reason,
+      testing: !!this.testing,
       pilot: this.pilot.id,
       bossKills: this.bossKills,
       score: this.score,

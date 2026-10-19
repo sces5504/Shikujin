@@ -59,3 +59,11 @@ render/audio.js 以 WebAudio 振盪器／gain envelope 合成原創配樂與音�
 `game/ultimates.js` 更新持續大絕／預告轟擊，不引用DOM。App接skill事件呈現cut-in，Renderer讀狀態畫效果。新增大絕以能力ID dispatch，不改主迴圈。
 
 build.mjs對來源／資產計算內容hash並更新相依模組及圖片URL；沒有Service Worker。部署只發佈stage產物。效能重現：`node tests/game/performance.mjs`；包含GPU readback避免只測CPU提交時間。
+
+## 1.6 擴充入口
+
+content/weapons.js定義主武器描述；catalog每機weapon穩定ID；game/weapons.js的mainWeapons策略registry實作射線／炮彈／編隊等，systems只呼叫fireMainWeapon。共用升級仍由player數值提供，beams是當幀純模擬幾何，impacts為有界24個視覺事件。新增武器不要在renderer按ship ID分支。
+
+render/camera.js提供死區攝影機與地表座標；terrain按固定世界tile繪圖，無戰鬥時間捲動。boundary.js繪可見圍欄與量測距離。Renderer使用camera而非player作GPU／Canvas共同投影。effects.js集中可辨識的各能力演出；敵彈預繪texture在GPU最後獨立批次，與一般裝飾粒子分離。高密度只減裝飾陰影，保留所有敵機與危險彈。
+
+core/secret-code.js只識別完整密碼＋Enter，忽略表單及重複鍵；ui/debug.js保留原畫面／暫停、管理測試工具；game/debug.js純邏輯跳波與等級，正式build也提供且不用QA網址。World.result.reason區分clear/retreat/defeat；內部終止state沿用defeat以保持事件相容，UI以reason選CG及文案。存檔v1新增reason並遷移舊紀錄。

@@ -102,7 +102,7 @@ export class MetaUI {
       }).join("")}</div>`;
     if (tab === "history")
       body = s.data.history.length
-        ? `<div class="history-table"><div class="history-row heading"><span>駕駛員</span><span>波次</span><span>分數</span><span>信用點</span></div>${s.data.history.map((r) => `<div class="history-row"><span>${PILOTS.find((p) => p.id === r.pilot)?.name || "—"} ${r.clear ? "✦" : ""}</span><b>${r.wave}</b><b>${r.score}</b><span>+${r.reward}</span></div>`).join("")}</div>`
+        ? `<div class="history-table"><div class="history-row heading"><span>駕駛員</span><span>波次</span><span>分數</span><span>信用點</span></div>${s.data.history.map((r) => `<div class="history-row"><span>${PILOTS.find((p) => p.id === r.pilot)?.name || "—"} ${r.clear ? "✦" : r.reason === "retreat" ? "↩" : ""}</span><b>${r.wave}</b><b>${r.score}</b><span>+${r.reward}</span></div>`).join("")}</div>`
         : '<p class="modal-subtitle empty-state">尚無作戰紀錄。星海等待你的第一道航跡。</p>';
     this.shell(
       "ORBITAL INTELLIGENCE",

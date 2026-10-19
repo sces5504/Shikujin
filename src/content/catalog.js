@@ -7,11 +7,12 @@ export const RULES = {
   maxEnemyBullets: 1500,
   maxPlayerBullets: 500,
   maxParticles: 350,
-  arena: 2400,
+  arena: 3200,
 };
 export const SHIPS = [
   {
     id: "kestrel",
+    weapon: "twin",
     name: "隼式",
     en: "KESTREL",
     role: "泛用突擊機",
@@ -26,6 +27,7 @@ export const SHIPS = [
   },
   {
     id: "wraith",
+    weapon: "laser",
     name: "幽影",
     en: "WRAITH",
     role: "高速截擊機",
@@ -41,6 +43,7 @@ export const SHIPS = [
   },
   {
     id: "bastion",
+    weapon: "cannon",
     name: "重岳",
     en: "BASTION",
     role: "重裝轟擊機",
@@ -97,7 +100,7 @@ export const PILOTS = [
     ability: "零時領域",
     skill: "stasis",
     cooldown: 26,
-    description: "7 秒時間領域，敵群減速並遭受相位追擊。",
+    description: "凍結敵人與敵彈 7 秒，彈體仍危險；相位追擊同步展開。",
     lines: [
       "通訊正常。保持冷靜，我在。",
       "敵方軌跡已解析。",
@@ -335,10 +338,11 @@ export const UPGRADES = [
 SHIPS.push(
   {
     id: "seraph",
+    weapon: "spread",
     name: "熾翼",
     en: "SERAPH",
-    role: "多重光束機",
-    description: "試製多重光束機。開場即配備雙彈道，適合廣域火力構築。",
+    role: "扇形壓制機",
+    description: "五向扇形散彈與追加彈道，擅長廣域壓制，近距離可集中爆發。",
     color: "#ff92c5",
     hp: 95,
     speed: 255,
@@ -350,6 +354,7 @@ SHIPS.push(
   },
   {
     id: "oracle",
+    weapon: "carrier",
     name: "神諭",
     en: "ORACLE",
     role: "自律護衛機",
