@@ -1,3 +1,4 @@
+import { bindCombatAction } from "../core/input.js";
 import { edgeDistance } from "../render/boundary.js";
 import { DebugUI } from "./debug.js";
 import { WEAPONS } from "../content/weapons.js";
@@ -30,8 +31,8 @@ export class App {
     $("helpButton").onclick = () => this.help();
     $("launch").onclick = () => this.launch();
     $("pauseButton").onclick = () => this.pause();
-    $("dashButton").onclick = () => this.world?.dash(this.input.get());
-    $("skillButton").onclick = () => this.world?.skill();
+    bindCombatAction($("dashButton"), () => this.world?.dash(this.input.get()));
+    bindCombatAction($("skillButton"), () => this.world?.skill());
     window.addEventListener("keydown", (e) => {
       if (
         e.repeat ||

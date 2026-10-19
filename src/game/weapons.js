@@ -192,6 +192,7 @@ export function fireMainWeapon(w, target, dt) {
   w.beams.length = 0;
   const fired = (mainWeapons[w.ship.weapon] || mainWeapons.twin)(w, target, dt);
   if (fired) {
+    w.muzzleUntil = w.time + 0.055;
     p.fire = p.interval / (p.overdrive > 0 ? 2 : 1);
     w.events.emit("shoot", {});
   }

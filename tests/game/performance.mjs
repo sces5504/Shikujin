@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 const baseline = process.argv.includes("--baseline");
+const fullBuild = process.argv.includes("--builds");
 const server = spawn(
   "python3",
   ["-m", "http.server", "4182", "--bind", "127.0.0.1"],
@@ -24,7 +25,7 @@ try {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://127.0.0.1:4182/?qa");
   await page.locator("#launch").click();
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async (fullBuild) => {
     const { app } = window.__SHIKUJIN__,
       w = app.world;
     w.enemies = [];
@@ -36,6 +37,21 @@ try {
     w.player.invuln = 1e6;
     w.player.fire = 1e6;
     w.player.magnet = 0;
+    if (fullBuild)
+      w.upgrades = {
+        arc: 5,
+        starburst: 4,
+        refraction: 4,
+        dashburst: 3,
+        volatile: 3,
+        frost: 4,
+        shatter: 3,
+        wing: 4,
+        formation: 3,
+        drone: 5,
+        pulse: 5,
+        missile: 5,
+      };
     app.closeModal();
     for (let i = 0; i < 240; i++) {
       const e = w.spawn(
@@ -43,6 +59,12 @@ try {
       );
       e.x = ((i % 20) - 10) * 58;
       e.y = (Math.floor(i / 20) - 6) * 60;
+      if (fullBuild && Math.hypot(e.x, e.y) < 120) {
+        // Keep all 240 targets; leave a firing pocket so new radial shots remain visible.
+        const angle = Math.atan2(e.y, e.x);
+        e.x = Math.cos(angle) * 140;
+        e.y = Math.sin(angle) * 140;
+      }
       e.speed = 0;
       e.fire = 1e6;
       e.hp = e.maxHp = 1e7;
@@ -67,11 +89,18 @@ try {
       submit = [],
       canvasSync = [],
       gpuSync = [];
-    for (let i = 0; i < 72; i++) {
+    let maxArcs = 0,
+      maxStars = 0;
+    for (let i = 0; i < (fullBuild ? 240 : 72); i++) {
       w.state = "playing";
       const a = performance.now();
       w.step(1 / 60);
       cpu.push(performance.now() - a);
+      maxArcs = Math.max(maxArcs, w.arcEffects?.length || 0);
+      maxStars = Math.max(
+        maxStars,
+        w.bullets.filter((b) => b.kind === "star").length,
+      );
       w.state = "paused";
       const t = performance.now();
       app.renderer.render(w, i / 60);
@@ -97,25 +126,32 @@ try {
       };
     };
     return {
+      fullBuild,
+      maxArcs,
+      maxStars,
       gpu: app.renderer.fx?.available,
       autoResolution: app.renderer.resolution,
       gpuError: app.renderer.fx?.error,
       glError: app.renderer.fx?.gl?.getError(),
       renderSubmit: app.renderer.stats.renderMs,
-      simulationMs: summarize(cpu.slice(-24)),
-      submitMs: summarize(submit.slice(-24)),
-      canvasSyncMs: summarize(canvasSync.slice(-24)),
-      gpuSyncMs: summarize(gpuSync.slice(-24)),
-      renderAndRasterMs: summarize(render.slice(-24)),
+      simulationMs: summarize(cpu.slice(fullBuild ? 24 : -24)),
+      submitMs: summarize(submit.slice(fullBuild ? 24 : -24)),
+      canvasSyncMs: summarize(canvasSync.slice(fullBuild ? 24 : -24)),
+      gpuSyncMs: summarize(gpuSync.slice(fullBuild ? 24 : -24)),
+      renderAndRasterMs: summarize(render.slice(fullBuild ? 24 : -24)),
       enemies: w.enemies.length,
       bullets: w.bullets.length,
       drops: w.drops.length,
     };
-  });
+  }, fullBuild);
   assert.deepEqual(errors, []);
+  if (fullBuild) {
+    assert.ok(result.maxArcs > 0);
+    assert.ok(result.maxStars > 0);
+  }
   await mkdir("test-results", { recursive: true });
   await writeFile(
-    `test-results/performance-${baseline ? "before" : "after"}.json`,
+    `test-results/performance-${fullBuild ? "builds" : baseline ? "before" : "after"}.json`,
     JSON.stringify(result, null, 2),
   );
   console.log(JSON.stringify(result));

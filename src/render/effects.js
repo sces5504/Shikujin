@@ -245,6 +245,24 @@ function impact(c, ex, time) {
   const age = 1 - ex.life / ex.maxLife,
     r = ex.r * (0.22 + age * 0.95),
     orbital = ex.kind === "orbital";
+  if (ex.kind === "hit") {
+    c.save();
+    c.translate(ex.x, ex.y);
+    c.rotate(ex.angle);
+    c.globalAlpha = ex.life / ex.maxLife;
+    c.strokeStyle = "#fff1bb";
+    c.lineWidth = 2;
+    for (let i = -2; i <= 2; i++) {
+      const a = i * 0.7,
+        r = ex.r * (1.4 - ex.life / ex.maxLife);
+      c.beginPath();
+      c.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.2);
+      c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      c.stroke();
+    }
+    c.restore();
+    return;
+  }
   c.save();
   c.translate(ex.x, ex.y);
   c.globalAlpha = 1 - age;
@@ -277,7 +295,7 @@ function impact(c, ex, time) {
   star(c, 0, 0, ex.r * (1 - age) * 0.55, "#fff9eb");
   c.restore();
 }
-export function combatEffects(c, w) {
+export function combatEffects(c, w, gpu = false) {
   c.save();
   c.globalCompositeOperation = "lighter";
   for (const b of w.arcEffects || []) {
@@ -334,6 +352,7 @@ export function combatEffects(c, w) {
     }
   }
   for (const st of w.strikes) targeting(c, st, w.time);
-  for (const ex of w.impacts) impact(c, ex, w.time);
+  for (const ex of w.impacts)
+    if (!gpu || ex.kind !== "hit") impact(c, ex, w.time);
   c.restore();
 }

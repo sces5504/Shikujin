@@ -22,3 +22,9 @@ export const BOSS_LOADOUTS = {
   oracle: { projectile: "plasma", motifs: ["cross", "curtain", "braid"] },
   eclipse: { projectile: "heavy", motifs: ["eclipse", "braid", "curtain"] },
 };
+
+export const BUILD_COMBAT = {
+  starSpeed: 480,
+  starInterval: 2.4,
+  refractionInterval: 2.8,
+};

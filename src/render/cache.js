@@ -183,6 +183,33 @@ export class RenderCache {
     this.sprites.set(key, cv);
     return cv;
   }
+  overlayGlow(color) {
+    const key = `overlay:${color}`;
+    if (this.sprites.has(key)) return this.sprites.get(key);
+    const cv = surface(40);
+    cv.getContext("2d").drawImage(this.glow(color), 0, 0);
+    cv.overlay = true;
+    this.sprites.set(key, cv);
+    return cv;
+  }
+  hitSpark() {
+    if (this.sprites.has("hitSpark")) return this.sprites.get("hitSpark");
+    const cv = surface(64),
+      c = cv.getContext("2d");
+    cv.overlay = true;
+    c.translate(32, 32);
+    c.strokeStyle = "#fff1bb";
+    c.lineWidth = 2;
+    for (let i = -2; i <= 2; i++) {
+      const a = i * 0.7;
+      c.beginPath();
+      c.moveTo(Math.cos(a) * 4, Math.sin(a) * 4);
+      c.lineTo(Math.cos(a) * 27, Math.sin(a) * 27);
+      c.stroke();
+    }
+    this.sprites.set("hitSpark", cv);
+    return cv;
+  }
   glow(color) {
     if (this.glows.has(color)) return this.glows.get(color);
     const cv = surface(40),

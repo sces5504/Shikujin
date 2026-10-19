@@ -16,3 +16,5 @@
 
 
 1.7新增`tests/game/arsenal.test.mjs`（前置、重抽、極限強化、彎曲雷射幾何、投射物motion／pool重設、構築聯動／2分鐘全構築、24次軌道轟擊、Boss輪替、戰役續無盡增量結算）與`arsenal-browser.mjs`（桌面手機升級／續戰／存檔／玩家受擊可見，以及每種長形彈8角度×2後端×2viewport共256項像素協方差方向驗證）。納入daily/release，不只比較傳入角度。
+
+1.8新增mobile-impact.test.mjs四項純模擬（五新構築、破盾冷卻、冰晶碎裂／兩進化、10組五機Boss首末關實際TTK與二階段）；mobile-impact-browser.mjs以CDP Input.dispatchTouchEvent保留第一指、添加第二指施放，確認不等click／不重複、放開第二指與雙擊／捏合、選取策略。performance.mjs新增--builds，在240敵／初始1000敵彈／750掉落下開新構築，預算與原壓測相同。新star也納入既有八方向×雙後端×桌面手機實際像素方向檢查，總288項。

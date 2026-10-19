@@ -76,3 +76,13 @@ core/secret-code.js只識別完整密碼＋Enter，忽略表單及重複鍵；ui
 - 雷射`beams.points`是玩法與渲染共用線段，單束加寬／能量成長，砲口角度保存在world而非renderer。GPU彈體走可旋轉精靈而非方向不一致的點shader；敵彈仍danger前景批次，context恢復重建texture。
 - `World.continueEndless`只接受campaign clear終局一次。保留構築，wave26、map0、intermission；previousSettlement只存於單局記憶體，後續finish回傳增量並帶continuation/bondWaves，SaveStore不重算runs。v1舊檔無需更改；沒有中途續存功能。
 - 髮型參考庫見`docs/art/hairstyle-library.json`及原始參考PDF，供新角色設計查詢，不打包至網站。
+
+## 1.8 輸入與回饋入口
+
+`core/input.js`的bindCombatAction為技能按鈕綁定獨立pointerdown與detail=0 click，不與移動pointer ID共用；App只提供動作callback。CSS以touch-action控制原生手勢，欄位保留user-select:text，不修改固定步進或World操作條件。
+
+`game/builds.js`增加radialSalvo及dashBuild／shieldBreakBuild／killBuild，World在對應既有事件發生時呼叫，保留模擬無DOM；低溫擊殺0.2秒節流、破盾8秒內置冷卻，避免擊殺碎片無界連鎖。折光與連鎖共用arcEffects短期光線，star為共用投射物原型。一般星環與折光頻率集中content/combat.js，強化／前置及進化仍由既有registry定義。
+
+World.hit增加有界命中視覺記錄，不改傷害運算；Renderer以effects.impact分支畫短火花，fireMainWeapon記錄短砲口亮光；Boss生命在encounters資料表，顯示大小與判定分開。
+
+GPU新增overlay精靈批次：一般機體→裝飾→命中火花／砲口光→danger敵彈。overlay不蓋敵彈；Canvas沿同樣可讀性原則繪製，context恢復仍由既有texture重建流程處理。短火花cache一次預繪，避免每幀逐條重畫；CPU記錄仍有24筆上限。
