@@ -25,7 +25,7 @@ test("new build tools create radial shots, distinct branching beams and dash sal
 });
 test("shield reaction triggers only on actual shield break with an eight-second cooldown", () => {
   const w = new World(),
-    e = enemy(w);
+    e = enemy(w, 0, w.player.y - 200);
   w.upgrades = { volatile: 2 };
   w.player.shield = 10;
   w.player.invuln = 0;
@@ -95,8 +95,13 @@ test("boss endurance lets representative early and late builds reach both attack
       e.speed = 0;
       w.skill();
       let frames = 0;
+      // A vertical-shooter pilot tracks the patrolling boss from mid-screen.
+      const follow = (d) => Math.max(-1, Math.min(1, d / 30));
       while (e.hp > 0 && frames < 120 * 60) {
-        w.step(1 / 60);
+        w.step(1 / 60, {
+          x: follow(e.x - w.player.x),
+          y: follow(0 - w.player.y),
+        });
         if (w.player.cooldown <= 0) w.skill();
         frames++;
       }

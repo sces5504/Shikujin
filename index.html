@@ -34,7 +34,7 @@
         >
         <div class="top-status">
           <span class="online-dot"></span> SYSTEM ONLINE
-          <span class="version">/ VER. 1.8</span>
+          <span class="version">/ VER. 1.9</span>
         </div>
         <div class="currency">
           <span>✧</span><b id="credits">0</b><small>信用點</small>
@@ -54,7 +54,7 @@
       </nav>
       <div class="hangar-body">
         <section class="intro">
-          <div class="eyebrow"><span></span> ROGUELITE AERIAL SURVIVAL</div>
+          <div class="eyebrow"><span></span> VERTICAL SHOOTING ROGUELITE</div>
           <h1>全彈裝填。<br />向絕境<span>開火。</span></h1>
           <p class="intro-copy">
             無盡敵潮，千變構築。<br />駕駛你的戰機，在星海中寫下新的航跡。
@@ -71,7 +71,7 @@
             <div>
               <small>當前作戰空域</small
               ><strong>蒼藍海岸 <span>AETHER RIFT</span></strong>
-              <p>無盡作戰 / 每 5 波遭遇首領</p>
+              <p>縱向捲軸 / 每 5 波遭遇首領</p>
             </div>
             <span class="mission-no">01</span>
           </div>
@@ -137,6 +137,13 @@
       </footer>
     </main>
     <div id="hud" class="hud hidden">
+      <div id="screenFlash" class="screen-flash"></div>
+      <div id="bossWarning" class="boss-warning" aria-live="assertive">
+        <div class="warning-stripe"></div>
+        <strong>WARNING</strong>
+        <span>巨大高能反應接近中</span>
+        <div class="warning-stripe"></div>
+      </div>
       <div class="hud-top">
         <div class="vitals">
           <div class="hud-callsign">
@@ -211,7 +218,7 @@
       <button id="dashButton" class="dash-button" aria-label="閃避衝刺">
         »<small id="dashCooldown">SHIFT</small>
       </button>
-      <div class="touch-hint">拖曳戰場移動 · 自動瞄準</div>
+      <div class="touch-hint">拖曳戰場移動 · 自動開火</div>
     </div>
     <div
       id="overlay"

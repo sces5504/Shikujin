@@ -41,17 +41,16 @@ test("upgrade pool has gated paths, distinct rerolls and continuation opportunit
   assert.ok(opts.every((u) => u.tags.length));
 });
 test("laser remains a single wider ribbon, follows curves and collides along rendered path", () => {
+  // Ship sits low in the column; the ribbon fires up and bends toward its lock.
   const w = new World({ ship: "wraith" }),
-    e = target(w),
-    e2 = target(w, 300);
-  w.player.angle = 0;
+    e = target(w, 0, 200),
+    e2 = target(w, 0, 0);
   fireMainWeapon(w, e, 1 / 60);
   const narrow = w.beams[0].width;
   assert.ok(e2.hp < e2.maxHp);
   applyUpgrade(w, "multi");
-  w.player.angle = Math.PI / 2;
-  e.x = 0;
-  e.y = 300;
+  e.x = 220;
+  e.y = 250;
   fireMainWeapon(w, e, 1 / 60);
   assert.equal(w.beams.length, 1);
   assert.ok(w.beams[0].width > narrow);
@@ -118,7 +117,7 @@ test("pulse reaches practical range and capacitor shortens its cooldown", () => 
   w.spawnTimer = 1e6;
   w.player.fire = 1e6;
   w.upgrades = { pulse: 1, capacitor: 2 };
-  const e = target(w, 400);
+  const e = target(w, 0, w.player.y - 400);
   w.step(1 / 60);
   assert.ok(e.hp < e.maxHp);
   assert.ok(w.pulseTimer < 3.2);
@@ -164,7 +163,7 @@ test("each boss rotates three distinct motifs and retains telegraph/rest windows
     e.age = 30.5;
     updateBoss(w, e, 1 / 60);
     assert.equal(w.bullets.length, 0);
-    assert.ok(w.bossArena.r > 700);
+    assert.ok(e.y < -600, "bosses enter from above the stage");
   }
 });
 test("campaign continuation retains build, starts map one wave 26 and settles only new earnings", () => {

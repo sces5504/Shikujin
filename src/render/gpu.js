@@ -207,6 +207,18 @@ export class GPULayer {
   flush() {
     if (!this.available) return;
     const g = this.gl;
+    // Clip combat sprites to the vertical stage column (CSS px → device px, GL origin bottom-left).
+    if (this.clip) {
+      const [x, y, w, h] = this.clip,
+        d = this.dpr;
+      g.enable(g.SCISSOR_TEST);
+      g.scissor(
+        Math.round(x * d),
+        Math.round(this.canvas.height - (y + h) * d),
+        Math.round(w * d),
+        Math.round(h * d),
+      );
+    } else g.disable(g.SCISSOR_TEST);
     g.bindBuffer(g.ARRAY_BUFFER, this.buffer);
     this.drawSprites(false);
     g.useProgram(this.pointProgram);
@@ -238,6 +250,7 @@ export class GPULayer {
     this.attribute(this.hostileProgram, "aPoint", 4, 32, 0);
     this.attribute(this.hostileProgram, "aStyle", 4, 32, 16);
     g.drawArrays(g.POINTS, 0, this.hostileCount);
+    g.disable(g.SCISSOR_TEST);
   }
   readPixels() {
     if (this.available)

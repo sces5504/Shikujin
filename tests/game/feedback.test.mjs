@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { SecretCode } from "../../src/core/secret-code.js";
-import { BattleCamera, groundOffset } from "../../src/render/camera.js";
+import { groundOffset } from "../../src/render/camera.js";
+import { STAGE, BOUNDS } from "../../src/content/stage.js";
 import { World } from "../../src/game/world.js";
-import { RULES } from "../../src/content/catalog.js";
 import { testWave, testLevels } from "../../src/game/debug.js";
 test("secret code requires exact trailing password and enter, ignores forms and repeat", () => {
   const code = new SecretCode(),
@@ -18,23 +18,29 @@ test("secret code requires exact trailing password and enter, ignores forms and 
   for (const k of "wwssadadba") key(k.toUpperCase());
   assert.equal(key("Enter"), true);
 });
-test("camera lets player move in a dead zone, ground remains world anchored and edge clamp is visible", () => {
-  const w = new World(),
-    c = new BattleCamera();
-  c.update(w, 1440, 960, 1, 0);
-  w.player.x = 100;
-  c.update(w, 1440, 960, 1, 1 / 60);
-  assert.equal(c.x, 0);
-  const before = groundOffset(c.x, c.y, 1, 1440, 960);
-  assert.equal(before.x, 720);
-  w.player.x = 800;
-  for (let i = 1; i < 120; i++) c.update(w, 1440, 960, 1, i / 60);
-  assert.ok(c.x > 500 && c.x < 800);
-  const after = groundOffset(c.x, c.y, 1, 1440, 960);
-  assert.equal(before.x - after.x, c.x);
-  w.player.x = RULES.arena;
-  for (let i = 120; i < 300; i++) c.update(w, 1440, 960, 1, i / 60);
-  assert.equal(c.x, RULES.arena - 720 + 150);
+test("vertical stage clamps the ship to the column, scrolls the ground and culls off-screen craft", () => {
+  const w = new World({ seed: 3 });
+  w.spawnTimer = 1e6;
+  for (let i = 0; i < 240; i++) w.step(1 / 60, { x: 1, y: 1 });
+  assert.equal(w.player.x, BOUNDS.right - STAGE.margin);
+  assert.equal(w.player.y, BOUNDS.bottom - STAGE.margin);
+  for (let i = 0; i < 400; i++) w.step(1 / 60, { x: -1, y: -1 });
+  assert.equal(w.player.x, BOUNDS.left + STAGE.margin);
+  assert.ok(w.player.y >= BOUNDS.top);
+  assert.ok(w.scroll > STAGE.scroll * 9);
+  const before = groundOffset(0, -w.scroll, 1, 720, 1200);
+  w.step(1 / 60);
+  assert.ok(groundOffset(0, -w.scroll, 1, 720, 1200).y > before.y);
+  // Touch drag moves 1:1 but is capped per step.
+  const x = w.player.x;
+  w.step(1 / 60, { drag: { x: 5, y: 0 } });
+  assert.ok(Math.abs(w.player.x - x - 5) < 1e-9);
+  w.step(1 / 60, { drag: { x: 5000, y: 0 } });
+  assert.ok(w.player.x - x < 60);
+  const e = w.spawn("scout");
+  e.y = BOUNDS.bottom + STAGE.despawn + 10;
+  w.step(1 / 60);
+  assert.ok(!w.enemies.includes(e));
 });
 test("debug wave and level changes are bounded and preserve pause with valid boss and map", () => {
   const w = new World();
@@ -45,12 +51,10 @@ test("debug wave and level changes are bounded and preserve pause with valid bos
   assert.equal(testWave(w, 10), true);
   assert.equal(w.mapIndex, 1);
   assert.equal(w.wave, 10);
-  assert.ok(w.bossArena);
   assert.ok(w.enemies.some((e) => e.kind === "boss"));
   assert.equal(w.state, "paused");
   testWave(w, 11);
   assert.equal(w.mapIndex, 2);
-  assert.equal(w.bossArena, null);
   assert.equal(w.bullets.length, 0);
   assert.equal(testWave(w, NaN), false);
 });

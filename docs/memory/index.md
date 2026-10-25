@@ -13,7 +13,8 @@
 - 使用者偏好：docs/memory/owner-preferences.md
 - 決策：docs/memory/decisions.md
 - 美術：docs/art/style-guide.md、asset-contract.md
-- 最新1.8交接：docs/handoffs/mobile-combat-impact-20261019.md
+- 最新1.9交接：docs/handoffs/vertical-shooter-20261025.md
+- 前版1.8交接：docs/handoffs/mobile-combat-impact-20261019.md
 - 前版1.7交接：docs/handoffs/arsenal-buildcraft-20261019.md
 - 前版1.6交接：docs/handoffs/flight-feedback-20261019.md
 - 前版打磨交接：docs/handoffs/polish-raiden-20261019.md
@@ -40,3 +41,6 @@
 三支壓縮影片已成功抽樣，追加雷射持續蛇行；最終本機release14:40全過98.55秒，34邏輯＋5套瀏覽器／效能，build45780d16ecee。PR #5，最終CI／部署見本次交接。
 
 1.8本次回饋接力：docs/handoffs/mobile-combat-impact-20261019.md，手機多指／原生手勢、Boss耐久及flygame參考的五新構築／兩進化。驗證與部署見該交接，不沿用1.7測試證據。
+
+
+1.9（2026-10-25）：使用者要求改為雷電式縱向捲軸、更好玩、畫面更炫。編隊、勳章鏈、道具線、Boss WARNING、雲層視差與街機側框；觸控改相對拖曳。立繪待使用者上傳，未改CG。交接：docs/handoffs/vertical-shooter-20261025.md，驗證與部署以該檔為準。

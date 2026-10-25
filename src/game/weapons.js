@@ -25,7 +25,7 @@ const shot = (w, x, y, a, s, d, kind = "shot", pierce = w.player.pierce) =>
 export const mainWeapons = {
   twin(w, target) {
     const p = w.player;
-    if (!target || p.fire > 0) return;
+    if (p.fire > 0) return;
     const t = TUNING.twin,
       count = 1 + p.multi;
     for (let i = 0; i < count; i++) {
@@ -43,22 +43,24 @@ export const mainWeapons = {
     return true;
   },
   laser(w, target, dt) {
-    if (!target) return;
     const p = w.player,
       tuning = TUNING.laser;
+    // Without a lock the plasma ribbon runs straight up the column.
+    target ??= { x: p.x, y: p.y - tuning.length };
+    const aim = Math.atan2(target.y - p.y, target.x - p.x);
     // Retain one coherent plasma ribbon; the muzzle follows a smoothed angle.
-    w.laserAngle ??= p.angle;
+    w.laserAngle ??= aim;
     const delta = Math.atan2(
-      Math.sin(p.angle - w.laserAngle),
-      Math.cos(p.angle - w.laserAngle),
+      Math.sin(aim - w.laserAngle),
+      Math.cos(aim - w.laserAngle),
     );
     w.laserAngle += delta * Math.min(1, dt * tuning.tracking);
     const length = Math.min(
         tuning.length,
         Math.hypot(target.x - p.x, target.y - p.y),
       ),
-      ex = p.x + Math.cos(p.angle) * length,
-      ey = p.y + Math.sin(p.angle) * length,
+      ex = p.x + Math.cos(aim) * length,
+      ey = p.y + Math.sin(aim) * length,
       cx = p.x + Math.cos(w.laserAngle) * length * 0.65,
       cy = p.y + Math.sin(w.laserAngle) * length * 0.65,
       points = [];
@@ -73,8 +75,8 @@ export const mainWeapons = {
         ) *
         Math.min(tuning.waveAmplitude, length * 0.1);
       points.push({
-        x: q * q * p.x + 2 * q * t * cx + t * t * ex - Math.sin(p.angle) * wave,
-        y: q * q * p.y + 2 * q * t * cy + t * t * ey + Math.cos(p.angle) * wave,
+        x: q * q * p.x + 2 * q * t * cx + t * t * ex - Math.sin(aim) * wave,
+        y: q * q * p.y + 2 * q * t * cy + t * t * ey + Math.cos(aim) * wave,
       });
     }
     const last = points.at(-1),
@@ -135,7 +137,7 @@ export const mainWeapons = {
   },
   cannon(w, target) {
     const p = w.player;
-    if (!target || p.fire > 0) return;
+    if (p.fire > 0) return;
     const t = TUNING.cannon;
     for (let i = 0; i < p.multi; i++)
       shot(
@@ -152,15 +154,16 @@ export const mainWeapons = {
   },
   spread(w, target) {
     const p = w.player;
-    if (!target || p.fire > 0) return;
+    if (p.fire > 0) return;
     const t = TUNING.spread,
-      count = t.baseCount + p.multi;
+      count = t.baseCount + p.multi,
+      spacing = Math.min(t.spacing, t.fan / Math.max(1, count - 1));
     for (let i = 0; i < count; i++)
       shot(
         w,
         p.x,
         p.y,
-        p.angle + (i - (count - 1) / 2) * t.spacing,
+        p.angle + (i - (count - 1) / 2) * spacing,
         t.speed,
         p.damage * t.damage,
         t.type,
@@ -169,10 +172,12 @@ export const mainWeapons = {
   },
   carrier(w, target) {
     const p = w.player;
-    if (!target || p.fire > 0) return;
+    if (p.fire > 0) return;
     const t = TUNING.carrier;
     for (const pos of escortPositions(w)) {
-      const a = Math.atan2(target.y - pos.y, target.x - pos.x);
+      const a = target
+        ? Math.atan2(target.y - pos.y, target.x - pos.x)
+        : pos.angle;
       shot(
         w,
         pos.x,

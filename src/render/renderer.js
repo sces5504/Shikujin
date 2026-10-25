@@ -1,13 +1,12 @@
 import { projectileType } from "../content/projectiles.js";
-import { BattleCamera } from "./camera.js";
+import { STAGE, ITEMS } from "../content/stage.js";
+import { drawSky, drawFrame } from "./stage-frame.js";
 import { combatEffects } from "./effects.js";
-import { drawBoundary } from "./boundary.js";
 import { escortPositions } from "../game/weapons.js";
 import { GPULayer } from "./gpu.js";
 import { RenderCache, blit } from "./cache.js";
 import { terrain } from "./terrain.js";
 import { BOSSES } from "../content/encounters.js";
-import { RULES } from "../content/catalog.js";
 export function drawShip(
   ctx,
   x,
@@ -178,7 +177,8 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false });
     this.cache = new RenderCache();
-    this.camera = new BattleCamera();
+    this.camera = { x: 0, y: 0 };
+    this.shipSize = 82;
     this.fx = new GPULayer();
     this.width = 0;
     this.height = 0;
@@ -199,10 +199,13 @@ export class Renderer {
     this.canvas.width = Math.max(1, Math.round(rect.width * this.dpr));
     this.canvas.height = Math.max(1, Math.round(rect.height * this.dpr));
     this.fx.resize(this.width, this.height, this.dpr);
+    // Fit the whole vertical column; wide screens get arcade side panels.
     this.scale = Math.max(
-      0.6,
-      Math.min(1.1, Math.min(this.width / 1120, this.height / 750)),
+      0.3,
+      Math.min(1.4, this.width / STAGE.width, this.height / STAGE.height),
     );
+    const sw = STAGE.width * this.scale;
+    this.fx.clip = [(this.width - sw) / 2, 0, sw, this.height];
     this.vignette = this.ctx.createRadialGradient(
       this.width / 2,
       this.height / 2,
@@ -239,7 +242,7 @@ export class Renderer {
       W = this.width,
       H = this.height;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    const camera = this.camera.update(w, W, H, this.scale, time);
+    const camera = this.camera;
     this.fx.begin(
       W,
       H,
@@ -250,7 +253,10 @@ export class Renderer {
     c.globalAlpha = 1;
     c.globalCompositeOperation = "source-over";
     c.shadowBlur = 0;
-    terrain(c, this.cache, w, W, H, this.scale, time, camera);
+    terrain(c, this.cache, w, W, H, this.scale, time, {
+      x: 0,
+      y: -(w?.scroll || 0),
+    });
     if (!w) {
       this.stats.renderMs = performance.now() - start;
       return;
@@ -268,30 +274,34 @@ export class Renderer {
     c.translate(-px, -py);
     if (!this.reduced && w.shake)
       c.translate(Math.sin(time * 87) * w.shake, Math.cos(time * 97) * w.shake);
-    drawBoundary(c, w, camera, W, H, this.scale);
+    const sw = STAGE.width / 2;
+    c.save();
+    c.beginPath();
+    c.rect(-sw, -H / this.scale, sw * 2, (H / this.scale) * 2);
+    c.clip();
+    drawSky(c, w, this.reduced);
     // Drop cores are batched. Glows are pre-rasterized once, never shadowBlur per item.
     c.globalCompositeOperation = "lighter";
     c.fillStyle = "#91ffe0";
     const dropGlow = this.cache.glow("#67ffd5");
     for (const d of w.drops) {
-      if (!visible(d.x, d.y, 15)) continue;
+      if (d.item || !visible(d.x, d.y, 15)) continue;
       if (this.fx.available) this.fx.point(d.x, d.y, 10, 3);
       else c.drawImage(dropGlow, d.x - 6, d.y - 6, 12, 12);
     }
     c.globalCompositeOperation = "source-over";
+    this.items(c, w, time);
     const kinds = ["scout", "striker", "orbiter", "tank", "charger", "healer"];
     for (const e of w.enemies) {
       if (e.hp <= 0 || !visible(e.x, e.y, 130)) continue;
       const boss = e.kind === "boss",
         angle = boss
-          ? e.pattern === "spiral" || e.pattern === "eclipse"
-            ? e.age * 0.1
-            : Math.atan2(p.y - e.y, p.x - e.x) + Math.PI / 2
-          : Math.atan2(p.y - e.y, p.x - e.x) + Math.PI / 2,
+          ? Math.PI - Math.max(-0.22, Math.min(0.22, (e.vx || 0) * 0.004))
+          : (e.heading ?? Math.PI / 2) + Math.PI / 2,
         group = boss ? "bosses" : "enemycraft",
         index = boss ? e.bossSprite || 0 : Math.max(0, kinds.indexOf(e.kind)),
         sprite = this.cache.sprite(group, index),
-        size = e.r * (boss ? 4.6 : 4);
+        size = e.r * (boss ? 4.6 : 4.8);
       if (boss) {
         c.save();
         c.translate(e.x, e.y);
@@ -481,8 +491,8 @@ export class Renderer {
       c.arc(p.x, p.y, 32, w.time, w.time + Math.PI * 1.7);
       c.stroke();
     }
-    const angle = p.angle + Math.PI / 2,
-      shipSize = 86,
+    const angle = p.angle + Math.PI / 2 + (p.bank || 0) * 0.14,
+      shipSize = this.shipSize,
       shadow = this.cache.sprite("craft", w.ship.shape);
     c.globalAlpha = 0.45;
     this.sprite(c, shadow, p.x + 20, p.y + 34, shipSize, angle, true);
@@ -496,44 +506,25 @@ export class Renderer {
     }
     c.globalAlpha = 1;
     c.globalCompositeOperation = "lighter";
-    const jet = this.cache.glow(w.ultimate ? "#ffda8a" : "#73d6ff");
-    c.drawImage(
-      jet,
-      p.x - Math.cos(p.angle) * 26 - 17,
-      p.y - Math.sin(p.angle) * 26 - 17,
-      34,
-      34,
-    );
+    const jet = this.cache.glow(w.ultimate ? "#ffda8a" : "#73d6ff"),
+      burn =
+        (p.overdrive > 0 || p.dashTime > 0 ? 1.7 : 1) *
+        (0.9 + Math.sin(time * 40) * 0.1);
+    for (const side of [-1, 1])
+      c.drawImage(jet, p.x + side * 9 - 9, p.y + 18, 18, 46 * burn);
+    c.drawImage(jet, p.x - 17, p.y + 10, 34, 34);
     c.globalCompositeOperation = "source-over";
     c.fillStyle = "#fff";
     c.beginPath();
     c.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
     c.fill();
+    this.popups(c, w);
+    c.restore();
     c.restore();
     if (this.fx.available) this.fx.point(p.x, p.y, 13, 8);
+    drawFrame(c, w, W, H, this.scale, time);
     this.fx.flush();
-    const boss = w.enemies.find((e) => e.kind === "boss" && e.hp > 0);
-    if (boss) {
-      const dx = (boss.x - px) * this.scale,
-        dy = (boss.y - py) * this.scale;
-      if (Math.abs(dx) > W / 2 - 70 || Math.abs(dy) > H / 2 - 120) {
-        const a = Math.atan2(dy, dx),
-          r = Math.min(
-            (W / 2 - 35) / Math.max(0.01, Math.abs(Math.cos(a))),
-            (H / 2 - 120) / Math.max(0.01, Math.abs(Math.sin(a))),
-          );
-        c.save();
-        c.translate(W / 2 + Math.cos(a) * r, H / 2 + Math.sin(a) * r);
-        c.rotate(a);
-        c.fillStyle = "#ffca85";
-        c.beginPath();
-        c.moveTo(11, 0);
-        c.lineTo(-7, -7);
-        c.lineTo(-7, 7);
-        c.fill();
-        c.restore();
-      }
-    }
+    this.flash(w);
     this.pointer(c);
     c.fillStyle = this.vignette;
     c.fillRect(0, 0, W, H);
@@ -564,6 +555,85 @@ export class Renderer {
     }
   }
 
+  items(c, w, time) {
+    c.font = "800 15px system-ui, sans-serif";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    for (const d of w.drops) {
+      if (!d.item) continue;
+      const def = ITEMS[d.item],
+        pulse = 1 + Math.sin(time * 8 + d.x) * 0.08,
+        r = 15 * pulse;
+      c.globalCompositeOperation = "lighter";
+      c.globalAlpha = 0.7;
+      c.drawImage(
+        this.cache.glow(def.color),
+        d.x - r * 2.2,
+        d.y - r * 2.2,
+        r * 4.4,
+        r * 4.4,
+      );
+      c.globalCompositeOperation = "source-over";
+      c.globalAlpha = 1;
+      c.save();
+      c.translate(d.x, d.y);
+      c.rotate(d.item === "medal" ? Math.sin(time * 3 + d.x) * 0.6 : 0);
+      c.fillStyle = "#08131f";
+      c.strokeStyle = def.color;
+      c.lineWidth = 2.5;
+      c.beginPath();
+      if (d.item === "medal") {
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2 - Math.PI / 2,
+            rr = i % 2 ? r * 0.5 : r;
+          c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        c.closePath();
+        c.fillStyle = def.color;
+        c.fill();
+        c.strokeStyle = "#fff6d0";
+        c.stroke();
+      } else {
+        c.moveTo(0, -r);
+        c.lineTo(r, 0);
+        c.lineTo(0, r);
+        c.lineTo(-r, 0);
+        c.closePath();
+        c.fill();
+        c.stroke();
+        c.fillStyle = def.color;
+        c.fillText(def.label, 0, 1);
+      }
+      c.restore();
+    }
+    c.textAlign = "start";
+    c.textBaseline = "alphabetic";
+  }
+  popups(c, w) {
+    if (!w.popups?.length) return;
+    c.font = "900 20px system-ui, sans-serif";
+    c.textAlign = "center";
+    c.lineWidth = 4;
+    c.strokeStyle = "#04101bdd";
+    for (const t of w.popups) {
+      c.globalAlpha = Math.min(1, (t.life / t.maxLife) * 2.2);
+      c.strokeText(t.text, t.x, t.y);
+      c.fillStyle = t.color;
+      c.fillText(t.text, t.x, t.y);
+    }
+    c.globalAlpha = 1;
+    c.textAlign = "start";
+  }
+  // Full-screen flash lives in the DOM so it also covers the GPU sprite layer.
+  flash(w) {
+    this.flashEl ??= document.getElementById("screenFlash");
+    if (!this.flashEl) return;
+    const v = this.reduced ? 0 : Math.min(0.85, w.flash || 0);
+    if (v !== this.lastFlash) {
+      this.flashEl.style.opacity = v.toFixed(3);
+      this.lastFlash = v;
+    }
+  }
   pointer(c) {
     if (!this.input?.pointer) return;
     const rect = this.canvas.getBoundingClientRect(),

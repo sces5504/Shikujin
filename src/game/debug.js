@@ -27,7 +27,6 @@ export function testWave(w, value) {
   w.enemies.length = 0;
   w.resetProjectiles();
   w.drops.length = 0;
-  w.bossArena = null;
   w.strikes.length = 0;
   w.beams.length = 0;
   w.ultimate = null;

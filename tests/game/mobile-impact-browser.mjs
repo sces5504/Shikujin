@@ -59,7 +59,8 @@ try {
     "second finger must activate skill before release",
   );
   assert.ok(
-    await page.evaluate(() => window.__SHIKUJIN__.app.input.get().x > 0.5),
+    // Movement drag stays owned by the first finger while the skill finger is down.
+    await page.evaluate(() => window.__SHIKUJIN__.app.input.vector.x > 0.5),
   );
   await send("touchEnd", [held]);
   await send("touchStart", [held, { id: 3, ...(await center("#dashButton")) }]);
@@ -120,7 +121,7 @@ try {
   await send("touchCancel", []);
   assert.deepEqual(
     await page.evaluate(() => window.__SHIKUJIN__.app.input.get()),
-    { x: 0, y: 0 },
+    { drag: { x: 0, y: 0 }, x: 0, y: 0 },
   );
   await page.evaluate(async () => {
     const { app } = window.__SHIKUJIN__,

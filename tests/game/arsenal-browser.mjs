@@ -94,6 +94,8 @@ try {
             r.fx.available = gpu;
             let observed;
             if (gpu) {
+              // Synthetic raster: drop the stage-column scissor (resize() restores it).
+              r.fx.clip = null;
               r.fx.begin(160, 160, 0, 0, 2);
               r.fx.resize(160, 160, 2);
               r.projectiles(r.ctx, w, () => true);
@@ -182,7 +184,7 @@ try {
         emit = r.fx.sprite.bind(r.fx);
       window.__playerAlphas = [];
       r.fx.sprite = (image, x, y, size, angle, alpha, black) => {
-        if (size === 86 && !black) window.__playerAlphas.push(alpha);
+        if (size === r.shipSize && !black) window.__playerAlphas.push(alpha);
         return emit(image, x, y, size, angle, alpha, black);
       };
       app.bannerUntil = 0;

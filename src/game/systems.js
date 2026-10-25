@@ -4,16 +4,21 @@ import { fireMainWeapon } from "./weapons.js";
 import { compact } from "../core/pool.js";
 import { RULES, ENEMIES, MAPS } from "../content/catalog.js";
 import { behaviors } from "./patterns.js";
+import { spawnSquad } from "./formations.js";
+import { STAGE, BOUNDS, onStage } from "../content/stage.js";
 export function director(w, dt) {
   w.waveTime += dt;
   w.spawnTimer -= dt;
   const boss = w.wave % RULES.bossEvery === 0;
   const surge = w.wave % RULES.surgeEvery === 0;
   if (w.spawnTimer <= 0 && w.enemies.length < RULES.maxEnemies) {
-    const n = boss ? 1 : surge ? 4 : Math.min(3, 1 + Math.floor(w.wave / 7));
-    for (let i = 0; i < n; i++) w.spawn(w.rng.pick(w.map.enemies));
+    // Squadrons rather than single drips: surges stack two formations at once.
+    const extra = Math.min(4, Math.floor(w.wave / 6)),
+      groups = surge ? 2 : 1;
+    for (let i = 0; i < groups; i++)
+      spawnSquad(w, w.rng.pick(w.map.enemies), boss ? -1 : extra);
     w.spawnTimer =
-      Math.max(0.13, 0.8 - w.wave * 0.025) * (boss ? 2 : surge ? 0.55 : 1);
+      Math.max(1.05, 2.7 - w.wave * 0.06) * (boss ? 3.2 : surge ? 0.8 : 1);
   }
   if (
     w.waveTime >= RULES.waveSeconds &&
@@ -27,6 +32,7 @@ export function director(w, dt) {
       w.mapIndex = (w.mapIndex + 1) % MAPS.length;
       w.map = MAPS[w.mapIndex];
       w.enemies = [];
+      w.squads.clear();
       w.resetProjectiles();
       w.drops = [];
       w.events.emit("map", w.map);
@@ -61,19 +67,22 @@ export function movement(w, dt, input) {
   }
   const speed =
     p.speed * (p.overdrive > 0 ? 1.35 : 1) * (p.dashTime > 0 ? 4 : 1);
-  p.x = Math.max(-RULES.arena, Math.min(RULES.arena, p.x + x * speed * dt));
-  p.y = Math.max(-RULES.arena, Math.min(RULES.arena, p.y + y * speed * dt));
-  if (w.bossArena) {
-    const a = w.bossArena,
-      dx = p.x - a.x,
-      dy = p.y - a.y,
-      d = Math.hypot(dx, dy);
-    if (d > a.r - 20) {
-      p.x = a.x + (dx / d) * (a.r - 20);
-      p.y = a.y + (dy / d) * (a.r - 20);
-    }
+  let mx = x * speed * dt,
+    my = y * speed * dt;
+  // Touch drag is 1:1 relative movement, capped so the ship never teleports.
+  const drag = input.drag;
+  if (drag && p.dashTime <= 0) {
+    const cap = speed * 4.5 * dt,
+      dl = Math.hypot(drag.x, drag.y),
+      k = dl > cap ? cap / dl : 1;
+    mx += drag.x * k;
+    my += drag.y * k;
   }
-  p.moving = len > 0.05;
+  const m = STAGE.margin;
+  p.x = Math.max(BOUNDS.left + m, Math.min(BOUNDS.right - m, p.x + mx));
+  p.y = Math.max(BOUNDS.top + m * 3, Math.min(BOUNDS.bottom - m, p.y + my));
+  p.bank = Math.max(-1, Math.min(1, mx / Math.max(1e-6, speed * dt)));
+  p.moving = len > 0.05 || Math.hypot(mx, my) > 0.1;
   p.invuln = Math.max(0, p.invuln - dt);
   p.overdrive = Math.max(0, p.overdrive - dt);
   p.cooldown = Math.max(0, p.cooldown - dt);
@@ -88,16 +97,19 @@ export function weapons(w, dt) {
 
   let target = null,
     dist = Infinity;
+  // Prefer visible enemies ahead of the nose; the gun itself always points up.
   for (const e of w.enemies) {
-    if (e.hp <= 0) continue;
+    if (e.hp <= 0 || !onStage(e.x, e.y, -10)) continue;
     const d =
-      ((e.x - p.x) ** 2 + (e.y - p.y) ** 2) * (e.kind === "boss" ? 0.4 : 1);
+      ((e.x - p.x) ** 2 + (e.y - p.y) ** 2) *
+      (e.kind === "boss" ? 0.4 : 1) *
+      (e.y > p.y ? 3 : 1);
     if (d < dist) {
       dist = d;
       target = e;
     }
   }
-  if (target) p.angle = Math.atan2(target.y - p.y, target.x - p.x);
+  p.angle = -Math.PI / 2;
   fireMainWeapon(w, target, dt);
   w.missileTimer -= dt;
   const missiles =
@@ -153,17 +165,10 @@ export function enemies(w, dt) {
   for (const e of w.enemies) {
     if (e.hp <= 0) continue;
     e.age += dt * slow;
-    e.fire -= dt * slow;
+    // Hold fire until the craft is actually inside the visible column.
+    if (onStage(e.x, e.y, -24) && e.y < BOUNDS.bottom - 140)
+      e.fire -= dt * slow;
     e.flash = Math.max(0, e.flash - dt);
-    if (
-      slow &&
-      e.kind === "boss" &&
-      Math.hypot(e.x - w.player.x, e.y - w.player.y) > 1300
-    ) {
-      const a = Math.atan2(e.y - w.player.y, e.x - w.player.x);
-      e.x = w.player.x + Math.cos(a) * 700;
-      e.y = w.player.y + Math.sin(a) * 700;
-    }
     const dx = w.player.x - e.x,
       dy = w.player.y - e.y,
       d = Math.hypot(dx, dy) || 1;
@@ -173,6 +178,13 @@ export function enemies(w, dt) {
           ? 1 - (w.upgrades.frost || 0) * 0.12 * (e.kind === "boss" ? 0.5 : 1)
           : 1;
       behaviors[e.behavior](w, e, dt * chill, dx, dy, d);
+      const sp = Math.hypot(e.vx || 0, e.vy || 0),
+        want = sp > 25 ? Math.atan2(e.vy, e.vx) : Math.atan2(dy, dx),
+        turn = Math.atan2(
+          Math.sin(want - e.heading),
+          Math.cos(want - e.heading),
+        );
+      e.heading += turn * Math.min(1, dt * 6);
     }
     if (d < e.r + w.player.r) w.hurt(e.kind === "boss" ? 35 : 15);
   }
@@ -235,6 +247,10 @@ export function projectiles(w, dt) {
       oldY = b.y;
     b.x += b.vx * dt * slow;
     b.y += b.vy * dt * slow;
+    if (!onStage(b.x, b.y, b.enemy ? 40 : 20)) {
+      b.life = 0;
+      continue;
+    }
     const hits = b.enemy
       ? w.playerTarget
       : w.grid.query(
@@ -305,19 +321,34 @@ export function projectiles(w, dt) {
   );
 }
 export function pickups(w, dt) {
-  const p = w.player;
+  const p = w.player,
+    vacuum = p.y < STAGE.collectLine;
   for (const drop of w.drops) {
     const dx = p.x - drop.x,
       dy = p.y - drop.y,
       d = Math.hypot(dx, dy);
-    if (d < p.magnet) {
-      drop.x += (dx / (d || 1)) * (260 + (p.magnet - d) * 3) * dt;
-      drop.y += (dy / (d || 1)) * (260 + (p.magnet - d) * 3) * dt;
+    drop.age = (drop.age || 0) + dt;
+    if (vacuum || drop.homing || d < p.magnet) {
+      if (vacuum) drop.homing = true;
+      const pull = drop.homing ? 900 : 260 + (p.magnet - d) * 3;
+      drop.x += (dx / (d || 1)) * pull * dt;
+      drop.y += (dy / (d || 1)) * pull * dt;
+    } else {
+      // Items pop upward, then fall with the scroll; plain crystals just drift.
+      drop.y += (drop.item ? Math.min(110, -70 + drop.age * 150) : 70) * dt;
+      if (drop.item) drop.x += Math.sin(drop.age * 3) * 30 * dt;
     }
-    if (d < 23) {
+    if (d < (drop.item ? 30 : 23)) {
       drop.dead = true;
-      w.xp += drop.value * p.xpFactor;
-      w.events.emit("pickup", {});
+      if (drop.item) w.collectItem(drop);
+      else {
+        w.xp += drop.value * p.xpFactor;
+        w.events.emit("pickup", {});
+      }
+    } else if (drop.y > BOUNDS.bottom + 30) {
+      drop.dead = true;
+      // Missing a medal breaks the chain, arcade style.
+      if (drop.item === "medal") w.medalChain = 0;
     }
   }
   compact(w.drops, (d) => !d.dead);
@@ -329,13 +360,23 @@ export function pickups(w, dt) {
   }
 }
 export function cleanup(w, dt) {
-  compact(
-    w.enemies,
-    (e) =>
-      e.hp > 0 &&
-      (e.kind === "boss" ||
-        Math.hypot(e.x - w.player.x, e.y - w.player.y) < 1800),
-  );
+  compact(w.enemies, (e) => {
+    if (e.hp <= 0) return false;
+    if (e.kind === "boss") return true;
+    const d = STAGE.despawn,
+      gone =
+        e.y > BOUNDS.bottom + d ||
+        e.x < BOUNDS.left - d * 3 ||
+        e.x > BOUNDS.right + d * 3 ||
+        e.y < BOUNDS.top - 900;
+    if (gone) w.escaped(e);
+    return !gone;
+  });
+  for (const t of w.popups) {
+    t.life -= dt;
+    t.y -= 40 * dt;
+  }
+  compact(w.popups, (t) => t.life > 0);
   for (const p of w.particles) {
     p.life -= dt;
     p.x += p.vx * dt;

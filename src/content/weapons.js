@@ -53,7 +53,9 @@ export const WEAPON_TUNING = {
     type: "spread",
     speed: 600,
     damage: 0.62,
-    spacing: 0.17,
+    spacing: 0.12,
+    // Total fan cap keeps late multi-shot builds focused enough for a vertical stage.
+    fan: 0.62,
     baseCount: 4,
   },
   carrier: { type: "escort", speed: 700, damage: 0.7, multiDamage: 0.25 },

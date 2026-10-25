@@ -16,6 +16,9 @@ export class Input {
     this.keys = new Set();
     this.pointer = null;
     this.vector = { x: 0, y: 0 };
+    this.pending = { x: 0, y: 0 };
+    // Screen pixels per world unit; main wires this to the renderer scale.
+    this.scale = () => 1;
     this.active = false;
     this.canvas = canvas;
     window.addEventListener("keydown", (e) => {
@@ -37,17 +40,27 @@ export class Input {
       if (!this.active || this.pointer) return;
       e.preventDefault();
       canvas.setPointerCapture(e.pointerId);
-      this.pointer = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      this.pointer = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+      };
       this.vector = { x: 0, y: 0 };
     });
     canvas.addEventListener("pointermove", (e) => {
       if (this.pointer?.id !== e.pointerId) return;
       e.preventDefault();
+      // Relative drag: the ship follows the finger's motion, not its absolute spot.
+      this.pending.x += e.clientX - this.pointer.lastX;
+      this.pending.y += e.clientY - this.pointer.lastY;
+      this.pointer.lastX = e.clientX;
+      this.pointer.lastY = e.clientY;
       const x = e.clientX - this.pointer.x,
-        y = e.clientY - this.pointer.y;
-      const d = Math.hypot(x, y),
-        limit = 55;
-      this.vector = { x: x / Math.max(limit, d), y: y / Math.max(limit, d) };
+        y = e.clientY - this.pointer.y,
+        d = Math.hypot(x, y);
+      this.vector = { x: x / Math.max(55, d), y: y / Math.max(55, d) };
     });
     for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
       canvas.addEventListener(event, (e) => {
@@ -59,20 +72,23 @@ export class Input {
   }
   get() {
     if (!this.active) return { x: 0, y: 0 };
+    const s = this.scale() || 1,
+      drag = { x: this.pending.x / s, y: this.pending.y / s };
+    this.pending.x = this.pending.y = 0;
     return {
+      drag,
       x:
         Number(this.keys.has("KeyD") || this.keys.has("ArrowRight")) -
-        Number(this.keys.has("KeyA") || this.keys.has("ArrowLeft")) +
-        this.vector.x,
+        Number(this.keys.has("KeyA") || this.keys.has("ArrowLeft")),
       y:
         Number(this.keys.has("KeyS") || this.keys.has("ArrowDown")) -
-        Number(this.keys.has("KeyW") || this.keys.has("ArrowUp")) +
-        this.vector.y,
+        Number(this.keys.has("KeyW") || this.keys.has("ArrowUp")),
     };
   }
   clear() {
     this.keys.clear();
     this.pointer = null;
     this.vector = { x: 0, y: 0 };
+    this.pending = { x: 0, y: 0 };
   }
 }
