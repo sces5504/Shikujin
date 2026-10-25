@@ -40,6 +40,11 @@
         "node",
         "--test",
         "tests/game/vertical.test.mjs"
+      ],
+      [
+        "node",
+        "--test",
+        "tests/game/depth.test.mjs"
       ]
     ],
     "release": [

@@ -236,6 +236,17 @@ export const ENEMIES = {
     fire: 4.5,
     score: 40,
   },
+  // Slow supply ship: no guns, crosses the screen once and pays out if destroyed.
+  carrier: {
+    hp: 520,
+    speed: 46,
+    r: 30,
+    xp: 30,
+    color: "#ffd27a",
+    behavior: "carrier",
+    shape: 4,
+    score: 300,
+  },
   boss: {
     hp: 2200,
     speed: 40,

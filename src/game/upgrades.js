@@ -27,6 +27,7 @@ export function choices(world, excluded = []) {
   let pool = UPGRADES.filter(
     (u) =>
       !u.limitBreak &&
+      !world.banished?.has(u.id) &&
       (world.upgrades[u.id] || 0) < u.max &&
       Object.entries(u.needs || {}).every(
         ([id, n]) => (world.upgrades[id] || 0) >= n,

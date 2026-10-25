@@ -9,6 +9,8 @@ import { EVOLUTIONS } from "../content/progression.js";
 import { SHIPS, PILOTS, UPGRADES, RULES } from "../content/catalog.js";
 import { World } from "../game/world.js";
 import { drawShip } from "../render/renderer.js";
+import { ROUTES, RESONANCE_TIERS } from "../content/depth.js";
+import { tagLevels, resonanceOf, upgradeTags, route } from "../game/depth.js";
 const $ = (id) => document.getElementById(id);
 const pad = (n, width = 2) => String(Math.floor(n)).padStart(width, "0");
 export class App {
@@ -241,6 +243,18 @@ export class App {
       this.audio.tone(item === "medal" ? 1320 : 980, 0.12, "triangle", 0.04),
     );
     w.events.on("squad", () => this.audio.tone(1560, 0.18, "sine", 0.035));
+    w.events.on("resonance", (r) => {
+      this.banner(
+        `${r.name} ${"◆".repeat(r.tier)}`,
+        `流派共鳴 · ${r.text[r.tier - 1]}`,
+      );
+      this.audio.tone(1100, 0.35, "triangle", 0.06);
+      this.updateBuild();
+    });
+    w.events.on("carrierIncoming", () =>
+      this.comms("補給運輸艦通過空域！擊落它就能回收強化晶片。"),
+    );
+    w.events.on("carrier", () => this.audio.tone(700, 0.4, "triangle", 0.06));
     w.events.on("upgrade", () => this.upgrade());
     w.events.on("wave", (wave) => {
       this.banner(
@@ -326,14 +340,39 @@ export class App {
     const w = this.world;
     this.audio.tone(900, 0.3);
     this.input.clear();
+    const levels = tagLevels(w);
+    // Each card shows its grade, how far it pushes every tag toward the next resonance tier.
+    const tagLine = (u) =>
+      upgradeTags(u)
+        .map((tag) => {
+          const now = levels[tag] || 0,
+            gain = Math.min(
+              u.max - (w.upgrades[u.id] || 0),
+              u.grade?.levels || 1,
+            ),
+            next = RESONANCE_TIERS.find((t) => t > now),
+            hit = next && now + gain >= next;
+          return `<span class="tag-chip ${hit ? "tier-up" : ""}">${tag} ${now}→${now + gain}${next ? `/${next}` : " MAX"}${hit ? ` · ${resonanceOf(tag).name}` : ""}</span>`;
+        })
+        .join("");
     this.modal(
-      `<div class="modal-eyebrow">NEURAL LINK ESTABLISHED</div><h2 class="modal-title">突破極限</h2><p class="modal-subtitle">等級 ${pad(w.level)} · 選擇一項強化，定義你的戰鬥風格。</p><div class="upgrade-grid">${w.options.map((u, i) => `<button class="upgrade-card ${u.rarity}" data-upgrade="${u.id}"><div class="rarity">${u.rarity === "rare" ? "RARE AUGMENT" : "TACTICAL AUGMENT"}</div><span class="upgrade-level">${i + 1} / LV.${(w.upgrades[u.id] || 0) + 1}</span><div class="upgrade-icon">${u.icon}</div><h3>${u.name}</h3><span class="upgrade-en">${u.en}</span><p>${u.description}</p><small>${(u.tags || []).join(" / ")}</small>${u.route ? `<p class="upgrade-route">${u.route}</p>` : ""}</button>`).join("")}</div><div class="modal-actions"><button id="rerollUpgrade" class="secondary-button" ${w.rerolls <= 0 ? "disabled" : ""}>重新解析 · 剩餘 ${w.rerolls} 次</button></div><div class="key-hint">點選強化 / 按 1、2、3 選擇 · 戰鬥已暫停</div>`,
+      `<div class="modal-eyebrow">${w.upgradeGuaranteed ? "SALVAGED CACHE · 強化晶片解析" : "NEURAL LINK ESTABLISHED"}</div><h2 class="modal-title">${w.upgradeGuaranteed ? "晶片解析完成" : "突破極限"}</h2><p class="modal-subtitle">等級 ${pad(w.level)} · 選擇一項強化。稀有度越高一次提升越多級；同流派累積 ${RESONANCE_TIERS.join("／")} 級觸發共鳴。</p><div class="upgrade-grid">${w.options
+        .map(
+          (u, i) =>
+            `<div class="upgrade-slot"><button class="upgrade-card grade-${u.grade?.id || "common"} ${u.rarity}" data-upgrade="${u.id}" style="--grade:${u.grade?.color || "#9fd8e0"}"><div class="rarity">${u.grade ? `${u.grade.en} · ${u.grade.name}` : "TACTICAL AUGMENT"}</div><span class="upgrade-level">${i + 1} / LV.${w.upgrades[u.id] || 0}→${Math.min(u.max, (w.upgrades[u.id] || 0) + (u.grade?.levels || 1))}</span><div class="upgrade-icon">${u.icon}</div><h3>${u.name}</h3><span class="upgrade-en">${u.en}</span><p>${u.description}</p>${u.grade?.heal ? `<p class="grade-bonus">附加：修復 ${Math.round(u.grade.heal * 100)}% 生命 · 重新解析 +${u.grade.reroll}</p>` : ""}<div class="tag-row">${tagLine(u)}</div>${u.route ? `<p class="upgrade-route">${u.route}</p>` : ""}</button><button class="banish-button" data-banish="${u.id}" ${w.banishes <= 0 ? "disabled" : ""} title="永久移出本局卡池">✕ 封印</button></div>`,
+        )
+        .join(
+          "",
+        )}</div><div class="modal-actions"><button id="rerollUpgrade" class="secondary-button" ${w.rerolls <= 0 ? "disabled" : ""}>重新解析 · 剩餘 ${w.rerolls} 次</button><span class="banish-count">封印剩餘 ${w.banishes} 次</span></div><div class="key-hint">點選強化 / 按 1、2、3 選擇 · 戰鬥已暫停</div>`,
       "upgrade",
     );
     $("rerollUpgrade").onclick = () => w.reroll();
     document
       .querySelectorAll("[data-upgrade]")
       .forEach((el) => (el.onclick = () => this.choose(el.dataset.upgrade)));
+    document
+      .querySelectorAll("[data-banish]")
+      .forEach((el) => (el.onclick = () => w.banish(el.dataset.banish)));
   }
   choose(id) {
     if (this.world?.choose(id)) {
@@ -344,18 +383,51 @@ export class App {
     }
   }
   intermission() {
-    const w = this.world;
+    const w = this.world,
+      rank = w.ranks.at(-1),
+      // UI-only randomness: never consume the seeded simulation RNG here.
+      offered = [
+        ROUTES[0],
+        ...ROUTES.slice(1)
+          .map((r) => [Math.random(), r])
+          .sort((a, b) => a[0] - b[0])
+          .slice(0, 2)
+          .map(([, r]) => r),
+      ];
+    let chosen = "standard";
     this.modal(
-      `<div class="modal-eyebrow">SECTOR CLEARED / HYPERSPACE TRANSIT</div><h2 class="modal-title">星門已開啟</h2><p class="modal-subtitle">下一站：${w.map.name} · 選擇一項航行補給。</p><div class="upgrade-grid">${SUPPLIES.map((s) => `<button class="upgrade-card" data-supply="${s.id}"><div class="rarity">ORBITAL RESUPPLY</div><div class="upgrade-icon">${s.icon}</div><h3>${s.name}</h3><p>${s.description}</p></button>`).join("")}</div>`,
+      `<div class="modal-eyebrow">SECTOR CLEARED / HYPERSPACE TRANSIT</div>${
+        rank
+          ? `<div class="sector-rank" style="--rank:${rank.color}"><b>${rank.rank}</b><div><small>SECTOR RANK</small><span>被擊中 ${rank.hits} 次 · 擊破 ${rank.kills} · 勳章 ${rank.medals} · ${Math.round(rank.time)} 秒</span><span>獎勵 +${rank.credits} 信用點 · +${rank.score} 分</span></div></div>`
+          : ""
+      }<h2 class="modal-title">星門已開啟</h2><p class="modal-subtitle">下一站：${w.map.name}。先選擇航線，再選擇補給出發。</p><div class="route-grid">${offered
+        .map(
+          (r) =>
+            `<button class="route-card ${r.id === "standard" ? "selected" : ""}" data-route="${r.id}"><span>${r.icon}</span><b>${r.name}</b><small>${r.description}</small></button>`,
+        )
+        .join(
+          "",
+        )}</div><div class="upgrade-grid">${SUPPLIES.map((s) => `<button class="upgrade-card" data-supply="${s.id}"><div class="rarity">ORBITAL RESUPPLY</div><div class="upgrade-icon">${s.icon}</div><h3>${s.name}</h3><p>${s.description}</p></button>`).join("")}</div>`,
       "intermission",
+    );
+    document.querySelectorAll("[data-route]").forEach(
+      (b) =>
+        (b.onclick = () => {
+          chosen = b.dataset.route;
+          document
+            .querySelectorAll("[data-route]")
+            .forEach((x) => x.classList.toggle("selected", x === b));
+        }),
     );
     document.querySelectorAll("[data-supply]").forEach(
       (b) =>
         (b.onclick = () => {
           this.closeModal();
-          w.supply(b.dataset.supply);
+          w.supply(b.dataset.supply, chosen);
           this.input.active = w.state === "playing";
           this.input.clear();
+          const r = route(w);
+          if (r.id !== "standard") this.banner(r.name, r.description);
         }),
     );
   }
@@ -366,6 +438,12 @@ export class App {
         .map((id) => {
           const e = EVOLUTIONS.find((e) => e.id === id);
           return `<div class="build-item evolved" title="${e.name}">${e.icon}</div>`;
+        })
+        .join("") +
+      Object.entries(w.resonance)
+        .map(([tag, tier]) => {
+          const r = resonanceOf(tag);
+          return `<div class="build-item resonance tier-${tier}" title="${r.name}：${r.text.slice(0, tier).join("、")}">${tag}<small>${"◆".repeat(tier)}</small></div>`;
         })
         .join("") +
       Object.entries(w.upgrades)
@@ -480,7 +558,7 @@ export class App {
     const retreat = result.reason === "retreat";
     const damaged = !result.clear && !retreat;
     this.modal(
-      `<div class="result-layout"><div class="result-art portrait ${damaged ? "damaged" : ""}" style="${portraitStyle(w.pilot, damaged)}"></div><div class="result-data"><div class="modal-eyebrow" style="color:#ff96ac">${result.clear ? "MISSION COMPLETE / DAWN RISING" : retreat ? "MISSION DEBRIEF / SAFE RETURN" : "SIGNAL LOST / RETURN TO BASE"}</div><h2 class="modal-title">${result.clear ? "破曉之時，與你同在。" : retreat ? "平安返航，整備再出發。" : "航跡未完，待續。"}</h2><p class="result-quote">${w.pilot.name}：「${result.clear ? "星海重歸寧靜。謝謝你，陪我飛到了最後。下一段航程，也一起吧。" : retreat ? "作戰資料已帶回。休息一下，再一起出擊吧。" : w.pilot.defeat}」</p><div class="result-stats"><div><small>抵達波次</small><b>${pad(result.wave)}</b></div><div><small>作戰分數</small><b>${pad(result.score, 5)}</b></div><div><small>敵機擊破</small><b>${result.kills}</b></div><div><small>生存時間</small><b>${pad(result.time / 60)}:${pad(result.time % 60)}</b></div></div><div class="reward"><span>✧ 獲得信用點</span><b>+ ${result.reward}</b></div><div class="modal-actions">${result.clear && w.mode === "campaign" ? `<button id="continueEndless" class="primary-button">繼續遠征 · 無盡第 2 輪</button>` : ""}<button id="retry" class="primary-button">再次出擊</button><button id="returnHangar" class="secondary-button">返回機庫 · 更換搭檔</button></div></div></div>`,
+      `<div class="result-layout"><div class="result-art portrait ${damaged ? "damaged" : ""}" style="${portraitStyle(w.pilot, damaged)}"></div><div class="result-data"><div class="modal-eyebrow" style="color:#ff96ac">${result.clear ? "MISSION COMPLETE / DAWN RISING" : retreat ? "MISSION DEBRIEF / SAFE RETURN" : "SIGNAL LOST / RETURN TO BASE"}</div><h2 class="modal-title">${result.clear ? "破曉之時，與你同在。" : retreat ? "平安返航，整備再出發。" : "航跡未完，待續。"}</h2><p class="result-quote">${w.pilot.name}：「${result.clear ? "星海重歸寧靜。謝謝你，陪我飛到了最後。下一段航程，也一起吧。" : retreat ? "作戰資料已帶回。休息一下，再一起出擊吧。" : w.pilot.defeat}」</p><div class="result-stats"><div><small>抵達波次</small><b>${pad(result.wave)}</b></div><div><small>作戰分數</small><b>${pad(result.score, 5)}</b></div><div><small>敵機擊破</small><b>${result.kills}</b></div><div><small>生存時間</small><b>${pad(result.time / 60)}:${pad(result.time % 60)}</b></div></div>${w.ranks.length ? `<div class="rank-strip"><small>各章評價</small>${w.ranks.map((r) => `<b style="color:${r.color}">${r.rank}</b>`).join("")}</div>` : ""}<div class="reward"><span>✧ 獲得信用點</span><b>+ ${result.reward}</b></div><div class="modal-actions">${result.clear && w.mode === "campaign" ? `<button id="continueEndless" class="primary-button">繼續遠征 · 無盡第 2 輪</button>` : ""}<button id="retry" class="primary-button">再次出擊</button><button id="returnHangar" class="secondary-button">返回機庫 · 更換搭檔</button></div></div></div>`,
       "defeat",
     );
     if ($("continueEndless"))
@@ -494,7 +572,7 @@ export class App {
     const p = w.player;
     $("boundaryWarning").classList.add("hidden");
     $("navigation").textContent =
-      `${w.map.name} / 航程 ${(w.scroll / 1000).toFixed(1)} km / ★×${w.medalChain}${w.stasis > 0 ? ` / 時間凍結 ${w.stasis.toFixed(1)}s` : ""}${w.testing ? " / TEST FLIGHT" : ""}`;
+      `${w.map.name}${w.routeId !== "standard" ? ` · ${route(w).name}` : ""} / 航程 ${(w.scroll / 1000).toFixed(1)} km / ★×${w.medalChain}${w.stasis > 0 ? ` / 時間凍結 ${w.stasis.toFixed(1)}s` : ""}${w.testing ? " / TEST FLIGHT" : ""}`;
     $("healthText").textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
     $("shieldText").textContent = `SHIELD ${Math.ceil(p.shield)}`;
     $("healthFill").style.width = `${(p.hp / p.maxHp) * 100}%`;

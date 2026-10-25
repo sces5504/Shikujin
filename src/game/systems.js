@@ -4,7 +4,9 @@ import { fireMainWeapon } from "./weapons.js";
 import { compact } from "../core/pool.js";
 import { RULES, ENEMIES, MAPS } from "../content/catalog.js";
 import { behaviors } from "./patterns.js";
-import { spawnSquad } from "./formations.js";
+import { spawnSquad, spawnCarrier } from "./formations.js";
+import { route } from "./depth.js";
+import { CARRIER } from "../content/depth.js";
 import { STAGE, BOUNDS, onStage } from "../content/stage.js";
 export function director(w, dt) {
   w.waveTime += dt;
@@ -19,6 +21,19 @@ export function director(w, dt) {
       spawnSquad(w, w.rng.pick(w.map.enemies), boss ? -1 : extra);
     w.spawnTimer =
       Math.max(1.05, 2.7 - w.wave * 0.06) * (boss ? 3.2 : surge ? 0.8 : 1);
+  }
+  if (
+    !boss &&
+    w.wave >= CARRIER.fromWave &&
+    w.carrierWave !== w.wave &&
+    w.waveTime >= CARRIER.at
+  ) {
+    w.carrierWave = w.wave;
+    for (let i = 0; i < (route(w).carriers || 1); i++) {
+      const c = spawnCarrier(w);
+      if (c && i) c.y += 160;
+    }
+    w.events.emit("carrierIncoming", {});
   }
   if (
     w.waveTime >= RULES.waveSeconds &&
@@ -167,7 +182,7 @@ export function enemies(w, dt) {
     e.age += dt * slow;
     // Hold fire until the craft is actually inside the visible column.
     if (onStage(e.x, e.y, -24) && e.y < BOUNDS.bottom - 140)
-      e.fire -= dt * slow;
+      e.fire -= dt * slow * (e.fireRate || 1);
     e.flash = Math.max(0, e.flash - dt);
     const dx = w.player.x - e.x,
       dy = w.player.y - e.y,
@@ -342,7 +357,7 @@ export function pickups(w, dt) {
       drop.dead = true;
       if (drop.item) w.collectItem(drop);
       else {
-        w.xp += drop.value * p.xpFactor;
+        w.xp += drop.value * p.xpFactor * (route(w).gain || 1);
         w.events.emit("pickup", {});
       }
     } else if (drop.y > BOUNDS.bottom + 30) {
@@ -352,6 +367,11 @@ export function pickups(w, dt) {
     }
   }
   compact(w.drops, (d) => !d.dead);
+  if (w.pendingCaches > 0 && w.state === "playing") {
+    w.pendingCaches--;
+    w.queueUpgrade(true);
+    return;
+  }
   if (w.xp >= w.nextXp) {
     w.xp -= w.nextXp;
     w.level++;

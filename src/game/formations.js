@@ -1,4 +1,5 @@
 import { BOUNDS } from "../content/stage.js";
+import { eliteChance, makeElite } from "./depth.js";
 // Squadron layouts. Each returns spawn slots; behaviors read `path` to fly them.
 // Slots are staggered off-screen so members enter one after another.
 const top = BOUNDS.top - 50;
@@ -91,7 +92,18 @@ export function spawnSquad(w, kind, extra = 0) {
       if (e) spawned.push(e);
     }
   for (const e of spawned) e.squad = squad.id;
+  // One member may be promoted to an elite with a visible affix.
+  if (spawned.length && w.rng.next() < eliteChance(w))
+    makeElite(w, w.rng.pick(spawned));
   squad.size = spawned.length;
   if (!squad.size) w.squads.delete(squad.id);
   return spawned;
+}
+export function spawnCarrier(w) {
+  const dir = w.rng.next() < 0.5 ? 1 : -1;
+  return w.spawn("carrier", {
+    x: -dir * (BOUNDS.right + 60),
+    y: BOUNDS.top + w.rng.range(180, 360),
+    path: { mode: "carrier", dir },
+  });
 }

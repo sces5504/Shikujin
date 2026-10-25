@@ -38,10 +38,11 @@ test("auto fire kills an enemy, drops experience and produces three distinct val
   tick(w, 1);
   assert.equal(w.state, "upgrade");
   assert.equal(new Set(w.options.map((u) => u.id)).size, 3);
-  const id = w.options[0].id;
+  const { id, grade, max } = w.options[0];
   assert.equal(w.choose("nonexistent"), false);
   assert.equal(w.choose(id), true);
-  assert.equal(w.upgrades[id], 1);
+  // Card grade grants several levels at once, never past the upgrade cap.
+  assert.equal(w.upgrades[id], Math.min(max, grade.levels));
   assert.equal(w.choose(id), false);
 });
 test("boss blocks next wave until defeated and map changes after boss wave", () => {

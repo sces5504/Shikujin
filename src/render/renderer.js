@@ -299,7 +299,11 @@ export class Renderer {
           ? Math.PI - Math.max(-0.22, Math.min(0.22, (e.vx || 0) * 0.004))
           : (e.heading ?? Math.PI / 2) + Math.PI / 2,
         group = boss ? "bosses" : "enemycraft",
-        index = boss ? e.bossSprite || 0 : Math.max(0, kinds.indexOf(e.kind)),
+        index = boss
+          ? e.bossSprite || 0
+          : e.kind === "carrier"
+            ? 3
+            : Math.max(0, kinds.indexOf(e.kind)),
         sprite = this.cache.sprite(group, index),
         size = e.r * (boss ? 4.6 : 4.8);
       if (boss) {
@@ -368,6 +372,39 @@ export class Renderer {
         );
         c.globalAlpha = 1;
         c.globalCompositeOperation = "source-over";
+      }
+      if (e.elite || e.kind === "carrier") {
+        // Elites and carriers carry a pulsing aura so they read as targets worth chasing.
+        const color = e.eliteColor || e.color,
+          pulse = 1 + Math.sin(w.time * 6 + e.id) * 0.08;
+        c.globalCompositeOperation = "lighter";
+        c.globalAlpha = 0.45;
+        c.drawImage(
+          this.cache.glow(color),
+          e.x - e.r * 2.4 * pulse,
+          e.y - e.r * 2.4 * pulse,
+          e.r * 4.8 * pulse,
+          e.r * 4.8 * pulse,
+        );
+        c.globalCompositeOperation = "source-over";
+        c.globalAlpha = 1;
+        c.strokeStyle = color;
+        c.lineWidth = 2;
+        c.setLineDash([10, 6]);
+        c.lineDashOffset = -w.time * 30;
+        c.beginPath();
+        c.arc(e.x, e.y, e.r * 1.6 * pulse, 0, Math.PI * 2);
+        c.stroke();
+        c.setLineDash([]);
+        c.font = "800 12px system-ui, sans-serif";
+        c.textAlign = "center";
+        c.fillStyle = color;
+        c.fillText(
+          e.kind === "carrier" ? "SUPPLY" : `ELITE · ${e.eliteName || ""}`,
+          e.x,
+          e.y - e.r * 1.6 - 14,
+        );
+        c.textAlign = "start";
       }
       if (!boss && e.hp < e.maxHp) {
         c.fillStyle = "#07131dcc";

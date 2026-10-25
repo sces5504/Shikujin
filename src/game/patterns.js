@@ -154,6 +154,10 @@ export const behaviors = {
       });
     }
   },
+  carrier(w, e, dt) {
+    const dir = e.path?.dir || 1;
+    move(e, dir * e.speed, Math.sin(e.age * 0.8) * 14 + 6, dt);
+  },
   boss(w, e, dt, dx, dy, d) {
     // Descend into the upper third, then patrol side to side above the player.
     const home = -250;
