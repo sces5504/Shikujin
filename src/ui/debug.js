@@ -123,7 +123,6 @@ export class DebugUI {
     $("credits").textContent = a.store.data.credits.toLocaleString();
     if (!a.world) a.drawLoadout();
     if (a.world) a.renderHud();
-    if (s.menu === "upgrade") a.upgrade();
     if (s.menu === "intermission") a.intermission();
   }
 }

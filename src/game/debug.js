@@ -1,6 +1,7 @@
 import { MAPS, RULES } from "../content/catalog.js";
 import { applyUpgrade, choices } from "./upgrades.js";
 import { checkEvolutions } from "./progression.js";
+import { XP_CURVE } from "../content/depth.js";
 export function testLevels(w, count) {
   if (!w || w.state === "defeat") return false;
   count = Math.max(1, Math.min(20, Math.floor(count) || 1));
@@ -9,7 +10,7 @@ export function testLevels(w, count) {
   w.testing = true;
   for (let i = 0; i < count; i++) {
     w.level++;
-    w.nextXp = Math.floor(w.nextXp * 1.23 + 12);
+    w.nextXp = Math.floor(w.nextXp * XP_CURVE.mul + XP_CURVE.add);
     const option = choices(w).find((u) => u.id !== "heal");
     if (option) applyUpgrade(w, option.id);
   }
