@@ -1,7 +1,7 @@
 # 1.9 雷電式縱向捲軸改版交接
 
 - 任務／範圍／branch：使用者要求改為雷電式直向、更好玩、畫面更炫（2026-10-25）。branch `claude/lucid-hamilton-ewj3e3`，起點 main ff635af。
-- 狀態：功能與文件完成，release 本機通過；PR／部署結果見本檔末段。
+- 狀態：已上線。功能 commit b931158，PR #7 合併 68c1a71；Checks 40166589377 與 Pages release 40166589311 成功，https://sces5504.github.io/Shikujin/ 已顯示 VER. 1.9（2026-10-25 05:46 UTC）。
 - 已完成：
   - `src/content/stage.js`：720×1200 欄位、捲動速度、道具線、道具與編隊獎勵輪替。
   - `src/game/formations.js`：七種編隊與 `spawnSquad`；`patterns.js` behaviors 改為縱向進場路徑，Boss 進場後上段巡邏。
