@@ -41,7 +41,8 @@ def frame(figure, height_ratio, top_pad=0.025):
     fig_h = y1 - y0
     head = alpha.crop((x0, y0, x1, y0 + int(fig_h * 0.16)))
     # Horizontal centre of the head band keeps faces aligned between pilots.
-    cols = [sum(1 for v in head.crop((i, 0, i + 1, head.height)).getdata() if v > 40) for i in range(head.width)]
+    px = head.load()
+    cols = [sum(1 for j in range(head.height) if px[i, j] > 40) for i in range(head.width)]
     total = sum(cols) or 1
     cx = x0 + sum(i * c for i, c in enumerate(cols)) / total
     crop_h = fig_h * height_ratio
@@ -140,13 +141,13 @@ def damage(figure, seed):
     soot = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(soot)
     for _ in range(22):
-        x, y, r = rnd.uniform(0, w), rnd.uniform(h * 0.15, h), rnd.uniform(18, 70)
+        x, y, r = rnd.uniform(0, w), rnd.uniform(h * 0.34, h), rnd.uniform(18, 70)
         d.ellipse((x - r, y - r * 0.7, x + r, y + r * 0.7), fill=(20, 14, 12, rnd.randint(60, 140)))
     soot = soot.filter(ImageFilter.GaussianBlur(14))
     marks = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     md = ImageDraw.Draw(marks)
     for _ in range(9):
-        x, y = rnd.uniform(w * 0.15, w * 0.85), rnd.uniform(h * 0.25, h * 0.95)
+        x, y = rnd.uniform(w * 0.15, w * 0.85), rnd.uniform(h * 0.4, h * 0.92)
         a, l = rnd.uniform(-0.9, 0.9) + math.pi / 2, rnd.uniform(30, 90)
         md.line((x, y, x + math.cos(a) * l, y + math.sin(a) * l), fill=(40, 20, 18, 200), width=3)
         md.line((x + 2, y, x + 2 + math.cos(a) * l * 0.8, y + math.sin(a) * l * 0.8), fill=(255, 190, 150, 120), width=1)

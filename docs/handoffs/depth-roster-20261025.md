@@ -20,4 +20,4 @@
 
 ## 驗證與部署
 
-（提交前填寫）
+本機 `check daily` 全過（7 套含新 depth.test.mjs）；`check release` 全過 102 秒，模擬 p95 1.1–1.2ms、繪製在既有預算內。截圖檢視機庫（六位駕駛員、戰女神）、通訊立繪、月輪結界、結算、休息室。20261020 checkout `git status` 乾淨（HEAD f7c8130）。Playwright 仍需 `.cache/ms-playwright` symlink（見 1.9 交接）。PR／部署結果見 docs/memory/index.md。
