@@ -1,5 +1,6 @@
 import { ORBITAL_BARRAGE as ORBITAL } from "../content/combat.js";
 import { compact } from "../core/pool.js";
+export const LUNAR_RADIUS = 130;
 export function startUltimate(w, kind) {
   if (kind !== "stasis") w.clearEnemyBullets();
   w.player.invuln = Math.max(2, w.player.invuln);
@@ -8,6 +9,8 @@ export function startUltimate(w, kind) {
     stasis: 7,
     repair: 8,
     nova: ORBITAL.duration,
+    swarm: 6,
+    lunar: 7,
   };
   w.ultimate = {
     kind,
@@ -57,6 +60,36 @@ export function updateUltimates(w, dt) {
       for (const e of w.enemies)
         if (e.hp > 0 && segmentDistance(e, p, p.angle) < e.r + 28)
           w.hit(e, p.damage * 8 * dt);
+    // Hisa: a continuous homing missile swarm, bounded by the player-bullet cap.
+    if (u.kind === "swarm" && u.tick <= 0) {
+      for (let i = -1; i <= 1; i++)
+        w.playerBullet(
+          p.x + i * 18,
+          p.y - 10,
+          -Math.PI / 2 + i * 0.75 + Math.sin(w.time * 9) * 0.2,
+          360,
+          p.damage * 2.2,
+          0,
+          "missile",
+        );
+      u.tick = 0.16;
+    }
+    // Sakuya: a moon ring around the ship erases hostile shots and grinds nearby craft.
+    if (u.kind === "lunar") {
+      const r = LUNAR_RADIUS;
+      for (const b of w.bullets)
+        if (
+          b.enemy &&
+          b.life > 0 &&
+          (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < r * r
+        ) {
+          b.life = 0;
+          w.score += 2;
+        }
+      for (const e of w.enemies)
+        if (e.hp > 0 && Math.hypot(e.x - p.x, e.y - p.y) < r + e.r)
+          w.hit(e, p.damage * 7 * dt);
+    }
     if (u.kind === "repair") {
       p.shield = Math.min(p.maxShield, p.shield + 20 * dt);
       if (u.tick <= 0) {

@@ -25,6 +25,13 @@ export const WEAPONS = {
     description: "五向扇形散射，近身火力密集；追加彈道擴展覆蓋角度。",
     color: "#ffb5e8",
   },
+  rail: {
+    name: "電磁軌道砲",
+    en: "RAIL DRIVER",
+    description:
+      "低射速超高速貫穿彈，一發打穿整條縱列；武裝擴充追加兩側導引針彈，穿透升級再增加貫穿數。",
+    color: "#9effd6",
+  },
   carrier: {
     name: "蜂群僚機編隊",
     en: "SWARM COMMAND",
@@ -59,4 +66,14 @@ export const WEAPON_TUNING = {
     baseCount: 4,
   },
   carrier: { type: "escort", speed: 700, damage: 0.7, multiDamage: 0.25 },
+  rail: {
+    type: "rail",
+    speed: 1350,
+    damage: 2.3,
+    pierce: 4,
+    pierceStep: 2,
+    needle: "shot",
+    needleDamage: 0.45,
+    needleSpread: 0.07,
+  },
 };

@@ -38,10 +38,11 @@ test("auto fire kills an enemy, drops experience and produces three distinct val
   tick(w, 1);
   assert.equal(w.state, "upgrade");
   assert.equal(new Set(w.options.map((u) => u.id)).size, 3);
-  const id = w.options[0].id;
+  const { id, grade, max } = w.options[0];
   assert.equal(w.choose("nonexistent"), false);
   assert.equal(w.choose(id), true);
-  assert.equal(w.upgrades[id], 1);
+  // Card grade grants several levels at once, never past the upgrade cap.
+  assert.equal(w.upgrades[id], Math.min(max, grade.levels));
   assert.equal(w.choose(id), false);
 });
 test("boss blocks next wave until defeated and map changes after boss wave", () => {
@@ -345,6 +346,23 @@ test("all four ultimates produce distinct effects; stasis preserves hostile bull
     w.step(1 / 60);
     assert.ok(w.ultimate.remaining > 0);
   }
+  // 2.0 pilots: a homing missile swarm and a bullet-erasing moon ring.
+  const swarm = new World({ pilot: "hisa" });
+  swarm.spawnTimer = 1e6;
+  assert.ok(swarm.skill());
+  assert.equal(swarm.ultimate.kind, "swarm");
+  for (let i = 0; i < 30; i++) swarm.step(1 / 60);
+  assert.ok(swarm.bullets.filter((b) => b.kind === "missile").length >= 6);
+  const lunar = new World({ pilot: "sakuya" });
+  lunar.spawnTimer = 1e6;
+  assert.ok(lunar.skill());
+  const near = lunar.spawn("tank");
+  Object.assign(near, { x: lunar.player.x + 60, y: lunar.player.y - 40 });
+  const shot = lunar.enemyBullet(near, Math.PI / 2, 10);
+  const hp = near.hp;
+  lunar.step(1 / 60);
+  assert.ok(shot.life <= 0 || !lunar.bullets.includes(shot));
+  assert.ok(near.hp < hp);
 });
 test("projectile pools reuse bullets and clearing during boss impact does not double release", () => {
   const w = new World();

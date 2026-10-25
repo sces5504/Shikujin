@@ -22,7 +22,7 @@ export class RenderCache {
   }
   prepare(name, image) {
     if (name === "terrain") return;
-    const count = name === "enemycraft" ? 6 : 5,
+    const count = name === "bosses" ? 5 : 6,
       size = name === "bosses" ? 220 : 100,
       cell = image.naturalWidth / 3;
     for (let i = 0; i < count; i++) {

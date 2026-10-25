@@ -180,6 +180,10 @@ export const WEAPON_AUGMENTS = {
   },
   cannon: { multi: "增加一發重砲，保持集中爆破。", pierce: "高爆半徑 +20m。" },
   spread: { multi: "扇面增加一發晶彈。", pierce: "每發晶彈額外穿透一架敵機。" },
+  rail: {
+    multi: "兩側追加一對導引針彈。",
+    pierce: "軌道彈額外貫穿兩架敵機。",
+  },
   carrier: {
     multi: "僚機主砲傷害 +25% 基礎倍率，追蹤導彈 +1。",
     pierce: "僚機砲彈額外穿透一架敵機。",

@@ -27,6 +27,7 @@ export const ITEMS = {
   power: { label: "P", color: "#ff6f8c", name: "火力全開" },
   bomb: { label: "B", color: "#7fe8ff", name: "大絕充能" },
   repair: { label: "+", color: "#8dffb0", name: "裝甲修復" },
+  cache: { label: "◆", color: "#d59bff", name: "強化晶片" },
 };
 export const SQUAD_REWARDS = [
   "medal",

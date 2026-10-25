@@ -13,7 +13,8 @@
 - 使用者偏好：docs/memory/owner-preferences.md
 - 決策：docs/memory/decisions.md
 - 美術：docs/art/style-guide.md、asset-contract.md
-- 最新1.9交接：docs/handoffs/vertical-shooter-20261025.md
+- 最新2.0交接：docs/handoffs/depth-roster-20261025.md
+- 前版1.9交接：docs/handoffs/vertical-shooter-20261025.md
 - 前版1.8交接：docs/handoffs/mobile-combat-impact-20261019.md
 - 前版1.7交接：docs/handoffs/arsenal-buildcraft-20261019.md
 - 前版1.6交接：docs/handoffs/flight-feedback-20261019.md
@@ -44,3 +45,5 @@
 
 
 1.9（2026-10-25）：使用者要求改為雷電式縱向捲軸、更好玩、畫面更炫。編隊、勳章鏈、道具線、Boss WARNING、雲層視差與街機側框；觸控改相對拖曳。立繪待使用者上傳，未改CG。交接：docs/handoffs/vertical-shooter-20261025.md，驗證與部署以該檔為準。已上線：PR #7 merge 68c1a71，Pages 40166589311 成功。
+
+2.0（2026-10-25）：稀有度／共鳴／封印／精英／運輸艦／航線／章節評價；新駕駛員緋紗、朔夜與新機體戰女神；六位立繪改用使用者授權的 sces5504/20261020 素材（嚴禁修改該 repo，只唯讀 clone）。交接：docs/handoffs/depth-roster-20261025.md。

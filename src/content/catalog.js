@@ -159,7 +159,59 @@ export const PILOTS = [
     ],
     defeat: "這次的失誤，由我承擔。整備之後，我們再出發。",
   },
+  // 2.0 pilots use standalone single-column portrait files (see asset-contract).
+  {
+    id: "hisa",
+    ...pilotArt("hisa"),
+    name: "緋紗",
+    en: "HISA",
+    age: 24,
+    title: "緋焰突擊",
+    color: "#ff6b7d",
+    passive: "射速 +12%",
+    ability: "緋焰流星群",
+    skill: "swarm",
+    cooldown: 25,
+    description: "6 秒內連續齊射追蹤飛彈，蜂群般撕開敵陣。",
+    lines: [
+      "緋紗，出擊！今天也要全部打下來！",
+      "再快一點、再近一點——就是現在！",
+      "全彈發射！流星雨，給我落下去！",
+    ],
+    defeat: "可惡……下次我一定會贏回來。陪我再練一次好不好？",
+  },
+  {
+    id: "sakuya",
+    ...pilotArt("sakuya"),
+    name: "朔夜",
+    en: "SAKUYA",
+    age: 27,
+    title: "銀月守望",
+    color: "#b9c4ff",
+    passive: "暴擊 +8%、擦彈充能 ×2",
+    ability: "月輪結界",
+    skill: "lunar",
+    cooldown: 27,
+    description: "7 秒月輪環繞機身，抹消觸及的敵彈並持續切割近身敵機。",
+    lines: [
+      "朔夜，就位。月光會為你指路。",
+      "擦身而過的子彈……也是我的力量。",
+      "月輪，展開。這片空域，由我守望。",
+    ],
+    defeat: "月有陰晴。先回去吧，下一次滿月時再出發。",
+  },
 ];
+function pilotArt(id) {
+  const file = (kind) => ({ asset: `pilot-${id}-${kind}.webp`, columns: 1 });
+  return {
+    radioPortrait: file("radio"),
+    burstPortrait: file("burst"),
+    ultimatePortrait: file("ultimate"),
+    memoryPortrait: file("memory"),
+    portrait: file("portrait"),
+    defeatPortrait: file("damaged"),
+  };
+}
 export const MAPS = [
   {
     id: "aether",
@@ -235,6 +287,17 @@ export const ENEMIES = {
     shape: 4,
     fire: 4.5,
     score: 40,
+  },
+  // Slow supply ship: no guns, crosses the screen once and pays out if destroyed.
+  carrier: {
+    hp: 520,
+    speed: 46,
+    r: 30,
+    xp: 30,
+    color: "#ffd27a",
+    behavior: "carrier",
+    shape: 4,
+    score: 300,
   },
   boss: {
     hp: 2200,
@@ -370,6 +433,22 @@ SHIPS.push(
     cost: 820,
     shape: 4,
     drone: 1,
+  },
+  {
+    id: "valkyrie",
+    weapon: "rail",
+    name: "戰女神",
+    en: "VALKYRIE",
+    role: "電磁狙擊機",
+    description:
+      "以電磁軌道砲貫穿整條縱列。射速慢但一擊穿透多架敵機，適合精準走位與 Boss 速殺。",
+    color: "#7dffc8",
+    hp: 100,
+    speed: 262,
+    damage: 26,
+    interval: 0.46,
+    cost: 1100,
+    shape: 5,
   },
 );
 MAPS.push(

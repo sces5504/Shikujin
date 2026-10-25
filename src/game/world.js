@@ -14,6 +14,14 @@ import { SHIPS, PILOTS, MAPS, ENEMIES, RULES } from "../content/catalog.js";
 import { choices, applyUpgrade } from "./upgrades.js";
 import * as systems from "./systems.js";
 import {
+  rollGrade,
+  updateResonance,
+  route,
+  rankSector,
+  resetSector,
+} from "./depth.js";
+import { ELITE_AFFIXES, CARRIER } from "../content/depth.js";
+import {
   STAGE,
   BOUNDS,
   ITEMS,
@@ -93,6 +101,13 @@ export class World {
     this.medalChain = 0;
     this.medals = 0;
     this.squadBonuses = 0;
+    this.resonance = {};
+    this.banishes = 2;
+    this.banished = new Set();
+    this.pendingCaches = 0;
+    this.routeId = "standard";
+    this.ranks = [];
+    this.carrierWave = 0;
     this.strikes = [];
     this.beams = [];
     this.impacts = [];
@@ -127,6 +142,7 @@ export class World {
     this.flash = 0;
     this.options = [];
     this.settled = false;
+    resetSector(this);
   }
   step(dt, input = {}) {
     if (this.state !== "playing") return;
@@ -158,7 +174,11 @@ export class World {
     const boss = kind === "boss";
     const scale = 1 + (this.wave - 1) * 0.13;
     const bossDef = boss ? BOSSES[this.mapIndex % BOSSES.length] : null;
-    const hp = (bossDef?.hp || def.hp) * scale * this.difficulty.hp;
+    const hp =
+      (bossDef?.hp || def.hp) *
+      scale *
+      this.difficulty.hp *
+      (route(this).enemyHp || 1);
     const e = {
       ...def,
       projectile: ENEMY_LOADOUTS[kind] || "enemy",
@@ -220,6 +240,9 @@ export class World {
     } else if (drop.item === "bomb") {
       p.cooldown *= 0.5;
       this.popup(drop.x, drop.y - 10, "BURST +", def.color);
+    } else if (drop.item === "cache") {
+      this.pendingCaches++;
+      this.popup(drop.x, drop.y - 10, "強化晶片", def.color);
     } else if (drop.item === "repair") {
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.15);
       p.shield = p.maxShield;
@@ -264,6 +287,7 @@ export class World {
   }
   enemyBullet(e, angle, speed, type = e.projectile || "enemy") {
     const def = projectileType(type);
+    speed *= route(this).bulletSpeed || 1;
     if (
       this.enemyBulletCount >= RULES.maxEnemyBullets ||
       this.bullets.length >= RULES.maxBullets
@@ -333,6 +357,7 @@ export class World {
 
   hit(e, damage) {
     if (e.hp <= 0) return;
+    if (e.elite) damage *= ELITE_AFFIXES[e.elite].damageTaken || 1;
     e.hp -= damage;
     if (
       damage > 0 &&
@@ -369,7 +394,27 @@ export class World {
       this.kills++;
       this.combo++;
       this.comboTime = 3.5;
-      this.score += e.score;
+      this.score += Math.round(e.score * (route(this).gain || 1));
+      if (e.elite) {
+        this.dropItem(e.x, e.y, "cache");
+        this.popup(
+          e.x,
+          e.y - 30,
+          `精英擊破 · ${ELITE_AFFIXES[e.elite].name}`,
+          e.eliteColor,
+        );
+        const ring = ELITE_AFFIXES[e.elite].deathRing;
+        for (let i = 0; i < (ring || 0); i++)
+          this.enemyBullet(e, (i / ring) * Math.PI * 2, 120, "petal");
+      }
+      if (e.kind === "carrier") {
+        this.dropItem(e.x, e.y, "cache");
+        this.dropItem(e.x - 40, e.y, "power");
+        for (let i = 0; i < CARRIER.medals; i++)
+          this.dropItem(e.x + 30 + i * 22, e.y - 10 + (i % 2) * 20, "medal");
+        this.popup(e.x, e.y - 40, "補給艦擊破", "#ffd27a");
+        this.events.emit("carrier", e);
+      }
       const squad = e.squad && this.squads.get(e.squad);
       if (squad && ++squad.killed >= squad.size) {
         this.squads.delete(e.squad);
@@ -430,6 +475,7 @@ export class World {
       this.events.emit("kill", e);
       if (e.kind === "boss") {
         this.bossKills++;
+        rankSector(this);
         this.killedBosses.push(e.bossId);
         this.clearEnemyBullets();
         this.player.hp = Math.min(
@@ -444,7 +490,8 @@ export class World {
     const p = this.player;
     if (p.invuln > 0 || this.debugInvincible || this.state !== "playing")
       return;
-    damage *= this.difficulty.damage;
+    damage *= this.difficulty.damage * (route(this).enemyDamage || 1);
+    this.sector.hits++;
     const absorbed = Math.min(p.shield, damage);
     p.shield -= absorbed;
     if (absorbed > 0 && p.shield === 0) shieldBreakBuild(this);
@@ -467,6 +514,7 @@ export class World {
       maxLife: 0.5,
       color,
     });
+    damage *= this.player.blastMul || 1;
     for (const e of this.enemies)
       if (Math.hypot(e.x - x, e.y - y) < r + e.r) this.hit(e, damage);
     this.shake = 3;
@@ -490,19 +538,44 @@ export class World {
       });
     }
   }
-  queueUpgrade() {
+  // Each offer carries a rolled grade; caches guarantee rare or better.
+  offer(excluded = []) {
+    return choices(this, excluded).map((u) => ({
+      ...u,
+      grade: rollGrade(this, this.upgradeGuaranteed),
+    }));
+  }
+  queueUpgrade(guaranteed = false) {
     if (this.state !== "playing") return;
     this.state = "upgrade";
-    this.options = choices(this);
+    this.upgradeGuaranteed = guaranteed;
+    this.options = this.offer();
     this.events.emit("upgrade", this.options);
   }
   reroll() {
     if (this.state !== "upgrade" || this.rerolls <= 0) return false;
     this.rerolls--;
-    this.options = choices(
-      this,
-      this.options.map((u) => u.id),
-    );
+    this.options = this.offer(this.options.map((u) => u.id));
+    this.events.emit("upgrade", this.options);
+    return true;
+  }
+  // Banishing removes an upgrade from this run's pool and refills only that slot.
+  banish(id) {
+    if (
+      this.state !== "upgrade" ||
+      this.banishes <= 0 ||
+      !this.options.some((u) => u.id === id)
+    )
+      return false;
+    this.banishes--;
+    this.banished.add(id);
+    const keep = this.options.filter((u) => u.id !== id),
+      fresh = this.offer(this.options.map((u) => u.id)).find(
+        (u) => !keep.some((k) => k.id === u.id),
+      );
+    this.options = this.options
+      .map((u) => (u.id === id ? fresh : u))
+      .filter(Boolean);
     this.events.emit("upgrade", this.options);
     return true;
   }
@@ -540,11 +613,21 @@ export class World {
     return true;
   }
   choose(id) {
-    if (this.state !== "upgrade" || !this.options.some((u) => u.id === id))
-      return false;
+    const option = this.options.find((u) => u.id === id);
+    if (this.state !== "upgrade" || !option) return false;
     if (!applyUpgrade(this, id)) return false;
+    const grade = option.grade;
+    for (let i = 1; i < (grade?.levels || 1); i++) applyUpgrade(this, id);
+    if (grade?.heal)
+      this.player.hp = Math.min(
+        this.player.maxHp,
+        this.player.hp + this.player.maxHp * grade.heal,
+      );
+    if (grade?.reroll) this.rerolls += grade.reroll;
     this.options = [];
     this.state = "playing";
+    this.upgradeGuaranteed = false;
+    updateResonance(this);
     checkEvolutions(this);
     this.events.emit("chosen", id);
     return true;
@@ -586,9 +669,11 @@ export class World {
     this.events.emit("dash", {});
     return true;
   }
-  supply(id) {
+  supply(id, routeId = "standard") {
     if (this.state !== "intermission") return false;
     this.state = "playing";
+    this.routeId = routeId;
+    resetSector(this);
     if (id === "repair") {
       this.player.hp = Math.min(
         this.player.maxHp,

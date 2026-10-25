@@ -337,6 +337,42 @@ export function combatEffects(c, w, gpu = false) {
     }
     if (u.kind === "stasis") clock(c, w, u.remaining);
     if (u.kind === "repair") sanctuary(c, w);
+    if (u.kind === "lunar") {
+      c.save();
+      c.translate(p.x, p.y);
+      const r = 130,
+        fade = Math.min(1, u.remaining);
+      c.globalAlpha = 0.3 * fade;
+      c.fillStyle = "#b9c4ff";
+      c.beginPath();
+      c.arc(0, 0, r, 0, Math.PI * 2);
+      c.fill();
+      c.globalAlpha = fade;
+      c.strokeStyle = "#e6ebff";
+      c.lineWidth = 3;
+      for (let i = 0; i < 3; i++) {
+        const a = w.time * (2.2 + i * 0.7) + i * 2.1,
+          rr = r - i * 14;
+        c.beginPath();
+        c.arc(0, 0, rr, a, a + 2.2);
+        c.stroke();
+        star(c, Math.cos(a) * rr, Math.sin(a) * rr, 9, "#ffffff");
+      }
+      c.restore();
+    }
+    if (u.kind === "swarm") {
+      c.save();
+      c.translate(p.x, p.y);
+      c.rotate(-w.time * 1.5);
+      c.strokeStyle = "#ff8fa0aa";
+      c.lineWidth = 2;
+      for (let i = 0; i < 6; i++) {
+        c.rotate(Math.PI / 3);
+        polygon(c, 70, 0, 9, 3, 0);
+        c.stroke();
+      }
+      c.restore();
+    }
     if (u.kind === "nova") {
       c.save();
       c.translate(p.x, p.y);
