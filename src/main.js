@@ -21,6 +21,7 @@ const store = new SaveStore(storage),
 let app;
 const input = new Input(canvas, () => app?.world?.skill());
 renderer.input = input;
+input.scale = () => renderer.scale;
 app = new App(store, renderer, audio, input);
 let last = performance.now(),
   accumulator = 0;

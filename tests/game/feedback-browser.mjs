@@ -73,7 +73,6 @@ try {
     const { app } = window.__SHIKUJIN__,
       w = app.world;
     w.enemies.length = 0;
-    w.bossArena = null;
     w.spawnTimer = 1e6;
     w.waveTime = -1e6;
     w.player.fire = 1e6;
@@ -114,8 +113,11 @@ try {
     w.player.x = 3170;
     w.player.y = 0;
   });
-  await page.waitForTimeout(1500);
-  await page.waitForSelector("#boundaryWarning:not(.hidden)");
+  await page.waitForTimeout(300);
+  // The vertical stage clamps the ship inside the visible column instead of warning.
+  assert.ok(
+    await page.evaluate(() => window.__SHIKUJIN__.app.world.player.x <= 360),
+  );
   await page.screenshot({ path: "test-results/boundary-desktop.png" });
   // Open from pause; closing tools must restore the actual pause menu and callbacks.
   await page.keyboard.press("Escape");

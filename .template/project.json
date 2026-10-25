@@ -35,6 +35,11 @@
         "node",
         "--test",
         "tests/game/mobile-impact.test.mjs"
+      ],
+      [
+        "node",
+        "--test",
+        "tests/game/vertical.test.mjs"
       ]
     ],
     "release": [

@@ -3285,3 +3285,84 @@ textarea,
   user-select: text;
   -webkit-touch-callout: default;
 }
+
+/* Vertical stage: full-screen flash and boss approach warning */
+.screen-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 40%, #fffdf2, #ffe7b8 60%, #ffc98a);
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.boss-warning {
+  position: absolute;
+  top: 34%;
+  left: 0;
+  right: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  color: #ff4d6d;
+  text-shadow:
+    0 0 24px #ff2a4f,
+    0 0 4px #fff;
+}
+.boss-warning.active {
+  animation: boss-warning 3s ease-out forwards;
+}
+.boss-warning strong {
+  font-size: clamp(44px, 9vw, 108px);
+  letter-spacing: 0.3em;
+  font-weight: 900;
+  animation: warning-blink 0.5s steps(2) infinite;
+}
+.boss-warning span {
+  font-size: 15px;
+  letter-spacing: 0.5em;
+  color: #ffd2da;
+}
+.warning-stripe {
+  width: min(720px, 92vw);
+  height: 14px;
+  background: repeating-linear-gradient(
+    -45deg,
+    #ff3355cc 0 14px,
+    #1a050acc 14px 28px
+  );
+  background-size: 40px 14px;
+  animation: warning-scroll 0.6s linear infinite;
+}
+@keyframes boss-warning {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+  10%,
+  80% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+@keyframes warning-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes warning-scroll {
+  to {
+    background-position: 40px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boss-warning strong,
+  .warning-stripe {
+    animation: none;
+  }
+}

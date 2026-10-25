@@ -239,13 +239,14 @@ try {
     type: "touchStart",
     touchPoints: [{ x: 100, y: 350 }],
   });
+  // Touch steering is 1:1 relative drag: sample before the finger moves.
+  const before = await mobile.evaluate(
+    () => window.__SHIKUJIN__.app.world.player.x,
+  );
   await touch.send("Input.dispatchTouchEvent", {
     type: "touchMove",
     touchPoints: [{ x: 150, y: 350 }],
   });
-  const before = await mobile.evaluate(
-    () => window.__SHIKUJIN__.app.world.player.x,
-  );
   await mobile.waitForTimeout(200);
   assert.ok(
     (await mobile.evaluate(() => window.__SHIKUJIN__.app.world.player.x)) >

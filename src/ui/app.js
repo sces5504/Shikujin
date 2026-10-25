@@ -1,5 +1,4 @@
 import { bindCombatAction } from "../core/input.js";
-import { edgeDistance } from "../render/boundary.js";
 import { DebugUI } from "./debug.js";
 import { WEAPONS } from "../content/weapons.js";
 import { BondUI } from "./bond.js";
@@ -238,6 +237,10 @@ export class App {
       if (e.kind === "boss") this.audio.tone(100, 0.8, "triangle", 0.12);
     });
     w.events.on("pickup", () => {});
+    w.events.on("item", (item) =>
+      this.audio.tone(item === "medal" ? 1320 : 980, 0.12, "triangle", 0.04),
+    );
+    w.events.on("squad", () => this.audio.tone(1560, 0.18, "sine", 0.035));
     w.events.on("upgrade", () => this.upgrade());
     w.events.on("wave", (wave) => {
       this.banner(
@@ -251,6 +254,10 @@ export class App {
       if (wave % RULES.surgeEvery === 0) this.comms(w.pilot.lines[1]);
     });
     w.events.on("boss", () => {
+      const warning = $("bossWarning");
+      warning.classList.remove("active");
+      void warning.offsetWidth;
+      warning.classList.add("active");
       this.comms("偵測到高能量反應。首領進入作戰空域！");
       this.audio.tone(160, 0.6, "sawtooth", 0.04);
     });
@@ -455,7 +462,7 @@ export class App {
   }
   help() {
     this.modal(
-      `<div class="panel"><div class="modal-eyebrow">PILOT FIELD MANUAL</div><h2 class="modal-title">飛行指南</h2><div class="guide-copy"><p><b>移動與射擊</b><br>WASD／方向鍵移動；手機或滑鼠在戰場上拖曳。戰機會自動瞄準最近的敵人並射擊。</p><p><b>強化與技能</b><br>靠近綠色經驗晶體即可吸收，升級時三選一。Shift／衝刺按鈕可短暫無敵閃避，空白鍵或右下角按鈕釋放駕駛員技能。5 秒未受傷後，護盾會自動恢復。</p><p><b>波次與返航</b><br>每 3 波有大量敵潮，每 5 波出現 Boss。擊敗 Boss 後前往新地圖。ESC／P 暫停，可隨時結算返航。結算信用點用於解鎖機體。</p></div><div class="modal-actions"><button id="closeHelp" class="primary-button">準備就緒</button></div></div>`,
+      `<div class="panel"><div class="modal-eyebrow">PILOT FIELD MANUAL</div><h2 class="modal-title">飛行指南</h2><div class="guide-copy"><p><b>移動與射擊</b><br>WASD／方向鍵移動；手機或滑鼠在戰場上拖曳，戰機 1:1 跟隨手指。主砲持續向前開火，雷射會彎向鎖定目標。</p><p><b>編隊與道具</b><br>整隊擊落敵方編隊會掉落道具：★勳章（連續拾取分數倍增，漏接會斷鏈）、P 火力全開、B 大絕充能、+ 裝甲修復。飛到畫面上方黃色箭頭線以上，會自動吸取所有掉落物。</p><p><b>強化與技能</b><br>靠近綠色經驗晶體即可吸收，升級時三選一。Shift／衝刺按鈕可短暫無敵閃避，空白鍵或右下角按鈕釋放駕駛員技能。5 秒未受傷後，護盾會自動恢復。</p><p><b>波次與返航</b><br>每 3 波有大量敵潮，每 5 波出現 Boss。擊敗 Boss 後前往新地圖。ESC／P 暫停，可隨時結算返航。結算信用點用於解鎖機體。</p></div><div class="modal-actions"><button id="closeHelp" class="primary-button">準備就緒</button></div></div>`,
       "help",
     );
     $("closeHelp").onclick = () => this.closeModal();
@@ -485,12 +492,9 @@ export class App {
     const w = this.world;
     if (!w) return;
     const p = w.player;
-    const distance = Math.max(0, Math.round(edgeDistance(w)));
-    $("boundaryWarning").classList.toggle("hidden", distance >= 320);
-    $("boundaryWarning").textContent =
-      `⚠ 作戰邊界 · ${distance} m · 請向空域中央轉向`;
+    $("boundaryWarning").classList.add("hidden");
     $("navigation").textContent =
-      `${w.map.name} / X ${Math.round(p.x)} · Y ${Math.round(p.y)}${w.stasis > 0 ? ` / 時間凍結 ${w.stasis.toFixed(1)}s` : ""}${w.testing ? " / TEST FLIGHT" : ""}`;
+      `${w.map.name} / 航程 ${(w.scroll / 1000).toFixed(1)} km / ★×${w.medalChain}${w.stasis > 0 ? ` / 時間凍結 ${w.stasis.toFixed(1)}s` : ""}${w.testing ? " / TEST FLIGHT" : ""}`;
     $("healthText").textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
     $("shieldText").textContent = `SHIELD ${Math.ceil(p.shield)}`;
     $("healthFill").style.width = `${(p.hp / p.maxHp) * 100}%`;

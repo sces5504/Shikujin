@@ -13,6 +13,14 @@ import { SpatialHash } from "../core/spatial.js";
 import { SHIPS, PILOTS, MAPS, ENEMIES, RULES } from "../content/catalog.js";
 import { choices, applyUpgrade } from "./upgrades.js";
 import * as systems from "./systems.js";
+import {
+  STAGE,
+  BOUNDS,
+  ITEMS,
+  SQUAD_REWARDS,
+  MEDAL_BASE,
+  MEDAL_CHAIN_MAX,
+} from "../content/stage.js";
 export class World {
   constructor({
     ship = "kestrel",
@@ -40,7 +48,7 @@ export class World {
     this.player = {
       id: 0,
       x: 0,
-      y: 0,
+      y: STAGE.playerStart,
       r: 7,
       hp: s.hp,
       maxHp: s.hp,
@@ -79,6 +87,12 @@ export class World {
     this.playerBulletCount = 0;
     this.rerolls = 3;
     this.mines = [];
+    this.squads = new Map();
+    this.popups = [];
+    this.scroll = 0;
+    this.medalChain = 0;
+    this.medals = 0;
+    this.squadBonuses = 0;
     this.strikes = [];
     this.beams = [];
     this.impacts = [];
@@ -110,6 +124,7 @@ export class World {
     this.pulseTimer = 0;
     this.stasis = 0;
     this.shake = 0;
+    this.flash = 0;
     this.options = [];
     this.settled = false;
   }
@@ -118,6 +133,10 @@ export class World {
     dt = Math.min(dt, 0.05);
     this.time += dt;
     this.shake = Math.max(0, this.shake - dt * 15);
+    this.flash = Math.max(0, this.flash - dt * 2.2);
+    const bossAlive = this.enemies.some((e) => e.kind === "boss" && e.hp > 0);
+    this.scrollSpeed = bossAlive ? STAGE.bossScroll : STAGE.scroll;
+    this.scroll += this.scrollSpeed * dt;
     systems.movement(this, dt, input);
     systems.director(this, dt);
     if (this.state !== "playing") return;
@@ -129,18 +148,16 @@ export class World {
     if (this.state === "playing") systems.pickups(this, dt);
     systems.cleanup(this, dt);
   }
-  spawn(kind) {
+  spawn(kind, slot = null) {
     const def = ENEMIES[kind];
     if (!def) return null;
     if (this.enemies.length >= RULES.maxEnemies) {
       if (kind !== "boss") return null;
       this.enemies.shift();
     }
-    const angle = this.rng.range(0, Math.PI * 2),
-      d = kind === "boss" ? 460 : this.rng.range(570, 800);
+    const boss = kind === "boss";
     const scale = 1 + (this.wave - 1) * 0.13;
-    const bossDef =
-      kind === "boss" ? BOSSES[this.mapIndex % BOSSES.length] : null;
+    const bossDef = boss ? BOSSES[this.mapIndex % BOSSES.length] : null;
     const hp = (bossDef?.hp || def.hp) * scale * this.difficulty.hp;
     const e = {
       ...def,
@@ -158,8 +175,13 @@ export class World {
         : {}),
       id: this.ids++,
       kind,
-      x: this.player.x + Math.cos(angle) * d,
-      y: this.player.y + Math.sin(angle) * d,
+      // Everything enters from above the visible column unless a formation says otherwise.
+      x: slot?.x ?? (boss ? 0 : this.rng.range(-300, 300)),
+      y: slot?.y ?? (boss ? BOUNDS.top - 170 : BOUNDS.top - 40),
+      path: slot?.path || { mode: "dive" },
+      vx: 0,
+      vy: 0,
+      heading: Math.PI / 2,
       hp,
       maxHp: hp,
       speed: def.speed * (1 + Math.min(0.7, this.wave * 0.018)),
@@ -167,15 +189,44 @@ export class World {
       age: 0,
       flash: 0,
     };
-    if (kind === "boss")
-      this.bossArena = {
-        x: this.player.x,
-        y: this.player.y,
-        r: bossDef.arenaRadius || 700,
-        color: bossDef.color,
-      };
     this.enemies.push(e);
     return e;
+  }
+  // Formation members that fly off-screen break the squadron bonus.
+  escaped(e) {
+    if (e.squad && this.squads.has(e.squad)) this.squads.delete(e.squad);
+  }
+  popup(x, y, text, color = "#fff2c4") {
+    if (this.popups.length >= 16) this.popups.shift();
+    this.popups.push({ x, y, text, color, life: 1.1, maxLife: 1.1 });
+  }
+  dropItem(x, y, item) {
+    if (this.drops.length >= 750) this.drops.shift();
+    this.drops.push({ x, y, value: 0, item, age: 0 });
+  }
+  collectItem(drop) {
+    const p = this.player,
+      def = ITEMS[drop.item];
+    if (!def) return;
+    if (drop.item === "medal") {
+      this.medalChain = Math.min(MEDAL_CHAIN_MAX, this.medalChain + 1);
+      this.medals++;
+      const value = MEDAL_BASE * this.medalChain;
+      this.score += value;
+      this.popup(drop.x, drop.y - 10, `${value}`, def.color);
+    } else if (drop.item === "power") {
+      p.overdrive = Math.max(p.overdrive, 6);
+      this.popup(drop.x, drop.y - 10, "POWER UP", def.color);
+    } else if (drop.item === "bomb") {
+      p.cooldown *= 0.5;
+      this.popup(drop.x, drop.y - 10, "BURST +", def.color);
+    } else if (drop.item === "repair") {
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.15);
+      p.shield = p.maxShield;
+      this.popup(drop.x, drop.y - 10, "REPAIR", def.color);
+    }
+    this.burst(drop.x, drop.y, def.color, 10);
+    this.events.emit("item", drop.item);
   }
   playerBullet(x, y, angle, speed, damage, pierce, kind = "shot") {
     if (
@@ -246,7 +297,32 @@ export class World {
     return b;
   }
   clearEnemyBullets() {
-    for (const b of this.bullets) if (b.enemy) b.life = 0;
+    // Cancelled bullets burst into score sparks so a bomb feels like a payout.
+    let cancelled = 0;
+    for (const b of this.bullets)
+      if (b.enemy && b.life > 0) {
+        b.life = 0;
+        cancelled++;
+        if (this.particles.length < RULES.maxParticles && cancelled % 2)
+          this.particles.push({
+            x: b.x,
+            y: b.y,
+            vx: this.rng.range(-40, 40),
+            vy: this.rng.range(-120, -40),
+            life: this.rng.range(0.35, 0.7),
+            color: "#9dfcff",
+            r: 1.6,
+          });
+      }
+    if (cancelled) {
+      this.score += cancelled * 3;
+      this.popup(
+        this.player.x,
+        this.player.y - 70,
+        `CANCEL ${cancelled}`,
+        "#9dfcff",
+      );
+    }
   }
   resetProjectiles() {
     for (const b of this.bullets) this.bulletPool.release(b);
@@ -294,8 +370,25 @@ export class World {
       this.combo++;
       this.comboTime = 3.5;
       this.score += e.score;
-      if (e.kind === "boss") this.xp += e.xp * this.player.xpFactor;
-      else {
+      const squad = e.squad && this.squads.get(e.squad);
+      if (squad && ++squad.killed >= squad.size) {
+        this.squads.delete(e.squad);
+        const item = SQUAD_REWARDS[this.squadBonuses++ % SQUAD_REWARDS.length];
+        this.dropItem(e.x, e.y, item);
+        this.score += 50 * squad.size;
+        this.popup(e.x, e.y - 24, `SQUADRON ×${squad.size}`, "#9dfcff");
+        this.events.emit("squad", squad);
+      }
+      if (e.kind === "boss") {
+        this.xp += e.xp * this.player.xpFactor;
+        // Bosses shower medals and repairs for the stage-clear moment.
+        for (let i = 0; i < 8; i++)
+          this.dropItem(
+            e.x + Math.cos(i * 0.785) * 70,
+            e.y + Math.sin(i * 0.785) * 50,
+            i % 4 === 3 ? "repair" : "medal",
+          );
+      } else {
         if (this.drops.length < 750)
           this.drops.push({ x: e.x, y: e.y, value: e.xp });
         else {
@@ -312,9 +405,30 @@ export class World {
           maxLife: e.kind === "boss" ? 1.2 : 0.55,
         });
       this.burst(e.x, e.y, "#ffae55", e.kind === "boss" ? 50 : 9);
+      if (e.kind !== "boss" && this.rings.length < 24)
+        this.rings.push({
+          x: e.x,
+          y: e.y,
+          r: e.r,
+          speed: 220 + e.r * 6,
+          life: 0.32,
+          maxLife: 0.32,
+          color: "#ffcf8a",
+        });
+      if (e.kind === "boss") {
+        this.flash = 0.9;
+        this.shake = 16;
+        for (let i = 0; i < 7 && this.explosions.length < 48; i++)
+          this.explosions.push({
+            x: e.x + this.rng.range(-110, 110),
+            y: e.y + this.rng.range(-80, 80),
+            r: this.rng.range(70, 140),
+            life: 0.7 + i * 0.12,
+            maxLife: 0.7 + i * 0.12,
+          });
+      }
       this.events.emit("kill", e);
       if (e.kind === "boss") {
-        this.bossArena = null;
         this.bossKills++;
         this.killedBosses.push(e.bossId);
         this.clearEnemyBullets();
@@ -405,8 +519,8 @@ export class World {
     this.waveTime = 0;
     this.mapIndex = 0;
     this.map = MAPS[0];
-    this.bossArena = null;
     this.enemies = [];
+    this.squads.clear();
     this.resetProjectiles();
     this.drops = [];
     this.mines = [];
@@ -440,6 +554,7 @@ export class World {
     if (this.state !== "playing" || p.cooldown > 0) return false;
     p.cooldown = this.pilot.cooldown * p.cooldownFactor;
     abilities[this.pilot.skill]?.(this);
+    this.flash = Math.max(this.flash, 0.4);
     this.burst(p.x, p.y, this.pilot.color, 35);
     this.events.emit("skill", {});
     return true;

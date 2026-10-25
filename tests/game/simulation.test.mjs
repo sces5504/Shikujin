@@ -10,11 +10,15 @@ const tick = (w, n, input = {}) => {
 test("seeded simulation is reproducible; motion normalized and paused states freeze", () => {
   const a = new World({ seed: 11 }),
     b = new World({ seed: 11 });
-  tick(a, 100, { x: 1, y: 1 });
-  tick(b, 100, { x: 1, y: 1 });
+  const start = { x: a.player.x, y: a.player.y };
+  tick(a, 100, { x: 1, y: -1 });
+  tick(b, 100, { x: 1, y: -1 });
   assert.equal(a.player.x, b.player.x);
   assert.equal(a.enemies[0].x, b.enemies[0].x);
-  assert.ok(Math.abs(Math.hypot(a.player.x, a.player.y) - 400) < 0.01);
+  assert.ok(
+    Math.abs(Math.hypot(a.player.x - start.x, a.player.y - start.y) - 400) <
+      0.01,
+  );
   a.pause();
   const time = a.time;
   tick(a, 100);
@@ -252,7 +256,8 @@ test("all bosses emit different finite patterned bullets with warning and rest w
     w.mapIndex = map;
     const e = w.spawn("boss");
     e.x = 250;
-    e.y = 0;
+    e.y = -330;
+    e.entered = true;
     e.age = 0;
     w.step(1 / 60);
     assert.ok(e.telegraph > 0);
@@ -438,10 +443,11 @@ test("all airframes have distinct main weapons; laser pierces and shell explodes
   for (const ship of SHIPS) {
     const w = new World({ ship: ship.id, pilot: "yuki" });
     w.spawnTimer = 1e6;
-    for (const x of [160, 250]) {
+    // Two heavies stacked in the column ahead of the upward-firing ship.
+    for (const y of [250, 100]) {
       const e = w.spawn("tank");
-      e.x = x;
-      e.y = 0;
+      e.x = 0;
+      e.y = y;
       e.hp = e.maxHp = 1e8;
       e.speed = 0;
     }
@@ -458,11 +464,12 @@ test("all airframes have distinct main weapons; laser pierces and shell explodes
     if (ship.weapon === "laser")
       assert.ok(w.enemies.every((e) => e.hp < e.maxHp));
     if (ship.weapon === "cannon") {
-      const b = w.bullets[0];
-      b.x = 155;
-      b.y = 0;
-      b.vx = 500;
-      b.vy = 0;
+      const b = w.bullets[0],
+        far = w.enemies[1];
+      b.x = far.x;
+      b.y = far.y + 30;
+      b.vx = 0;
+      b.vy = -500;
       w.step(0.02);
       assert.ok(w.impacts.some((i) => i.kind === "shell"));
       assert.ok(w.enemies[1].hp < w.enemies[1].maxHp);
