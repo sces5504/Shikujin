@@ -1,4 +1,6 @@
-# 素材契約 v1.5
+# 素材契約 v1.5（2.0 更新見文末）
+
+> 2.0（2026-10-25）：六套駕駛員 CG 改用使用者另一專案 `sces5504/20261020` 的透明全身立繪，經使用者明確同意取用（「素材、立繪你也可以從我這個遊戲抓」，且嚴禁修改該專案）。只以唯讀 clone 讀取，從不提交或推送該 repo。`scripts/art/build-portraits.py <20261020 checkout>` 重現全部輸出：半身裁切、駕駛艙 `art/world/bridge.webp` 背景、cosmos 能量背景、戰損煙灰／刮痕程序疊加。對應：赤璃←stellar10 io、凜←standard maiden-02、雪羽←stellar10 titania、澪←standard maiden-04、緋紗←standard maiden-03、朔夜←stellar10 pluto。新增駕駛員為 `pilot-<id>-<kind>.webp` 單欄 384×1024（kind：portrait／radio／burst／ultimate／memory／damaged，radio／burst 透明）。craft.webp 第 6 格填入戰女神（幽影重新上色與拉寬機翼），cache 讀取 6 格。來源素材在原專案標示為待使用者審閱的候選，本專案沿用使用者授權，不另宣稱商用授權審查。
 
 所有圖像為2026-10-19工具生成的原創資產，附件僅作風格／色彩參考。四人CG從同一新版賽璐璐母圖衍生，原始生成檔留workspace/generated_images；網站只放壓縮WebP。
 

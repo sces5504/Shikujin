@@ -170,6 +170,34 @@ export const mainWeapons = {
       );
     return true;
   },
+  // Rail: one hypersonic piercing slug plus paired side needles per multi level.
+  rail(w) {
+    const p = w.player;
+    if (p.fire > 0) return;
+    const t = TUNING.rail;
+    shot(
+      w,
+      p.x,
+      p.y - 20,
+      p.angle,
+      t.speed,
+      p.damage * t.damage,
+      t.type,
+      t.pierce + p.pierce * t.pierceStep,
+    );
+    for (let k = 1; k < p.multi; k++)
+      for (const side of [-1, 1])
+        shot(
+          w,
+          p.x + side * 16,
+          p.y,
+          p.angle + side * k * t.needleSpread,
+          t.speed * 0.7,
+          p.damage * t.needleDamage,
+          t.needle,
+        );
+    return true;
+  },
   carrier(w, target) {
     const p = w.player;
     if (p.fire > 0) return;

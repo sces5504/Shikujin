@@ -33,7 +33,7 @@ try {
   await page.waitForFunction(() => window.__SHIKUJIN__);
   await mkdir("test-results", { recursive: true });
   await page.screenshot({ path: "test-results/hangar-desktop.png" });
-  assert.equal(await page.locator("[data-pilot]").count(), 4);
+  assert.equal(await page.locator("[data-pilot]").count(), 6);
   await page.locator('[data-pilot="mio"]').click();
   await page.locator("#launch").click();
   await page.waitForTimeout(180);
@@ -196,7 +196,7 @@ try {
   await page.locator("#archiveButton").click();
   await page.screenshot({ path: "test-results/boss-archive.png" });
   await page.locator('[data-tab="pilot"]').click();
-  assert.equal(await page.locator(".pilot-archive article").count(), 4);
+  assert.equal(await page.locator(".pilot-archive article").count(), 6);
   await page.locator("#closeMeta").click();
   await page.locator("#modeButton").click();
   await page.locator('[data-mode="endless"]').click();

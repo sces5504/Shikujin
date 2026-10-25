@@ -346,6 +346,23 @@ test("all four ultimates produce distinct effects; stasis preserves hostile bull
     w.step(1 / 60);
     assert.ok(w.ultimate.remaining > 0);
   }
+  // 2.0 pilots: a homing missile swarm and a bullet-erasing moon ring.
+  const swarm = new World({ pilot: "hisa" });
+  swarm.spawnTimer = 1e6;
+  assert.ok(swarm.skill());
+  assert.equal(swarm.ultimate.kind, "swarm");
+  for (let i = 0; i < 30; i++) swarm.step(1 / 60);
+  assert.ok(swarm.bullets.filter((b) => b.kind === "missile").length >= 6);
+  const lunar = new World({ pilot: "sakuya" });
+  lunar.spawnTimer = 1e6;
+  assert.ok(lunar.skill());
+  const near = lunar.spawn("tank");
+  Object.assign(near, { x: lunar.player.x + 60, y: lunar.player.y - 40 });
+  const shot = lunar.enemyBullet(near, Math.PI / 2, 10);
+  const hp = near.hp;
+  lunar.step(1 / 60);
+  assert.ok(shot.life <= 0 || !lunar.bullets.includes(shot));
+  assert.ok(near.hp < hp);
 });
 test("projectile pools reuse bullets and clearing during boss impact does not double release", () => {
   const w = new World();

@@ -255,7 +255,10 @@ export function projectiles(w, dt) {
       b.grazed = true;
       w.grazes++;
       w.score += 2;
-      w.player.cooldown = Math.max(0, w.player.cooldown - 0.06);
+      w.player.cooldown = Math.max(
+        0,
+        w.player.cooldown - 0.06 * (w.player.grazeBonus || 1),
+      );
       w.events.emit("graze", {});
     }
     const oldX = b.x,
