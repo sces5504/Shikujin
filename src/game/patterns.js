@@ -1,4 +1,5 @@
 import { updateBoss } from "./boss-patterns.js";
+import { ENEMY_SCALING } from "../content/depth.js";
 export const patterns = {
   aimed(w, e, count = 1, spread = 0.2, speed = 145) {
     const angle = Math.atan2(w.player.y - e.y, w.player.x - e.x);
@@ -46,8 +47,8 @@ export const behaviors = {
   chase(w, e, dt, dx, dy, d) {
     if (e.kind === "scout" && e.fire <= 0) {
       // Early squadrons only take potshots; later waves add a second barrel.
-      if (w.wave >= 6 || e.id % 2)
-        patterns.aimed(w, e, w.wave >= 6 ? 2 : 1, 0.2, 165);
+      const full = w.wave >= ENEMY_SCALING.fullFireWave;
+      if (full || e.id % 2) patterns.aimed(w, e, full ? 2 : 1, 0.2, 165);
       e.fire = 4.4;
     }
     flight(w, e, dt, dx);

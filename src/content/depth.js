@@ -135,9 +135,24 @@ export const ELITE = {
 // Carriers appear every `every` waves so caches stay a treat, not a stream.
 export const CARRIER = { fromWave: 2, every: 2, at: 9, medals: 4 };
 // Experience needed per level: start, then ×mul + add each level.
-export const XP_CURVE = { start: 60, mul: 1.32, add: 24 };
-// Enemy toughness growth per wave (was 0.13 before 2.1).
-export const ENEMY_SCALING = { hpPerWave: 0.18 };
+export const XP_CURVE = { start: 90, mul: 1.42, add: 40 };
+// Enemy threat. Non-boss HP ×baseHp, growing hpPerWave per wave; bullets hit harder and fly faster.
+export const ENEMY_SCALING = {
+  baseHp: 1.6,
+  hpPerWave: 0.22,
+  bulletSpeed: 1.25,
+  bulletDamage: 14,
+  bulletDamagePerWave: 1,
+  spawnInterval: 2.3,
+  spawnFloor: 0.9,
+  fullFireWave: 3,
+};
+// Player survivability knobs (2.2 tightened them after playtest feedback).
+export const PLAYER_TUNING = {
+  hitInvuln: 0.6,
+  shieldRegen: 3,
+  bossHeal: 0.15,
+};
 export const ROUTES = [
   {
     id: "standard",

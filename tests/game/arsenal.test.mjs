@@ -14,6 +14,7 @@ import { fireMainWeapon } from "../../src/game/weapons.js";
 import { bossPatterns, updateBoss } from "../../src/game/boss-patterns.js";
 import { checkEvolutions } from "../../src/game/progression.js";
 import { SaveStore } from "../../src/core/storage.js";
+import { ENEMY_SCALING } from "../../src/content/depth.js";
 const target = (w, x = 200, y = 0) => {
   const e = w.spawn("tank");
   Object.assign(e, { x, y, hp: 1e8, maxHp: 1e8, speed: 0 });
@@ -76,7 +77,12 @@ test("archetypes own collision radius, damage and motion; pooled reuse resets ty
   for (const [id, def] of Object.entries(PROJECTILES)) {
     const b = w.enemyBullet(e, 0, 100, id);
     assert.equal(b.r, def.radius);
-    assert.equal(b.damage, (12 + w.wave * 0.7) * def.damage);
+    assert.equal(
+      b.damage,
+      (ENEMY_SCALING.bulletDamage +
+        w.wave * ENEMY_SCALING.bulletDamagePerWave) *
+        def.damage,
+    );
   }
   w.resetProjectiles();
   const b = w.playerBullet(0, 0, 0, 100, 10, 0, "shot");
