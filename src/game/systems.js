@@ -6,7 +6,12 @@ import { RULES, ENEMIES, MAPS } from "../content/catalog.js";
 import { behaviors } from "./patterns.js";
 import { spawnSquad, spawnCarrier } from "./formations.js";
 import { route } from "./depth.js";
-import { CARRIER, XP_CURVE } from "../content/depth.js";
+import {
+  CARRIER,
+  XP_CURVE,
+  ENEMY_SCALING,
+  PLAYER_TUNING,
+} from "../content/depth.js";
 import { STAGE, BOUNDS, onStage } from "../content/stage.js";
 export function director(w, dt) {
   w.waveTime += dt;
@@ -20,7 +25,10 @@ export function director(w, dt) {
     for (let i = 0; i < groups; i++)
       spawnSquad(w, w.rng.pick(w.map.enemies), boss ? -1 : extra);
     w.spawnTimer =
-      Math.max(1.05, 2.7 - w.wave * 0.06) * (boss ? 3.2 : surge ? 0.8 : 1);
+      Math.max(
+        ENEMY_SCALING.spawnFloor,
+        ENEMY_SCALING.spawnInterval - w.wave * 0.06,
+      ) * (boss ? 3.2 : surge ? 0.8 : 1);
   }
   if (
     !boss &&
@@ -105,7 +113,7 @@ export function movement(w, dt, input) {
   p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   p.sinceHit += dt;
   if (p.sinceHit > Math.max(2, 5 - (w.upgrades.reactor || 0) * 0.6))
-    p.shield = Math.min(p.maxShield, p.shield + 5 * dt);
+    p.shield = Math.min(p.maxShield, p.shield + PLAYER_TUNING.shieldRegen * dt);
   w.stasis = Math.max(0, w.stasis - dt);
 }
 export function weapons(w, dt) {

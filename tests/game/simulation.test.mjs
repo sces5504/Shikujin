@@ -385,7 +385,8 @@ test("ten-minute endless stress keeps every transient collection and pool bounde
   const w = new World({ mode: "endless", pilot: "akari", seed: 31337 });
   w.wave = 18;
   w.player.hp = w.player.maxHp = 1e8;
-  w.player.damage = 95;
+  // Harness firepower only needs to clear 2.2's tougher bosses so the run reaches late waves.
+  w.player.damage = 260;
   applyUpgrade(w, "missile");
   applyUpgrade(w, "drone");
   let maxBullets = 0,

@@ -25,6 +25,7 @@ import {
   CARRIER,
   XP_CURVE,
   ENEMY_SCALING,
+  PLAYER_TUNING,
 } from "../content/depth.js";
 import {
   STAGE,
@@ -181,7 +182,7 @@ export class World {
     const scale = 1 + (this.wave - 1) * ENEMY_SCALING.hpPerWave;
     const bossDef = boss ? BOSSES[this.mapIndex % BOSSES.length] : null;
     const hp =
-      (bossDef?.hp || def.hp) *
+      (bossDef?.hp || def.hp * ENEMY_SCALING.baseHp) *
       scale *
       this.difficulty.hp *
       (route(this).enemyHp || 1);
@@ -293,7 +294,7 @@ export class World {
   }
   enemyBullet(e, angle, speed, type = e.projectile || "enemy") {
     const def = projectileType(type);
-    speed *= route(this).bulletSpeed || 1;
+    speed *= (route(this).bulletSpeed || 1) * ENEMY_SCALING.bulletSpeed;
     if (
       this.enemyBulletCount >= RULES.maxEnemyBullets ||
       this.bullets.length >= RULES.maxBullets
@@ -308,7 +309,10 @@ export class World {
       angle,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      damage: (12 + this.wave * 0.7) * def.damage,
+      damage:
+        (ENEMY_SCALING.bulletDamage +
+          this.wave * ENEMY_SCALING.bulletDamagePerWave) *
+        def.damage,
       type,
       speed,
       age: 0,
@@ -486,7 +490,7 @@ export class World {
         this.clearEnemyBullets();
         this.player.hp = Math.min(
           this.player.maxHp,
-          this.player.hp + this.player.maxHp * 0.25,
+          this.player.hp + this.player.maxHp * PLAYER_TUNING.bossHeal,
         );
         this.events.emit("bossKilled", {});
       }
@@ -502,7 +506,7 @@ export class World {
     p.shield -= absorbed;
     if (absorbed > 0 && p.shield === 0) shieldBreakBuild(this);
     p.hp = Math.max(0, p.hp - (damage - absorbed));
-    p.invuln = 0.8;
+    p.invuln = PLAYER_TUNING.hitInvuln;
     p.sinceHit = 0;
     this.shake = 7;
     this.burst(p.x, p.y, "#ff8fa0", 12);
