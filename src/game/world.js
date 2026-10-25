@@ -20,7 +20,12 @@ import {
   rankSector,
   resetSector,
 } from "./depth.js";
-import { ELITE_AFFIXES, CARRIER } from "../content/depth.js";
+import {
+  ELITE_AFFIXES,
+  CARRIER,
+  XP_CURVE,
+  ENEMY_SCALING,
+} from "../content/depth.js";
 import {
   STAGE,
   BOUNDS,
@@ -104,7 +109,8 @@ export class World {
     this.resonance = {};
     this.banishes = 2;
     this.banished = new Set();
-    this.pendingCaches = 0;
+    // Level-ups and caches queue picks; combat never pauses for them.
+    this.pickQueue = [];
     this.routeId = "standard";
     this.ranks = [];
     this.carrierWave = 0;
@@ -129,7 +135,7 @@ export class World {
     this.spawnTimer = 0.4;
     this.level = 1;
     this.xp = 0;
-    this.nextXp = 35;
+    this.nextXp = XP_CURVE.start;
     this.score = 0;
     this.kills = 0;
     this.grazes = 0;
@@ -172,7 +178,7 @@ export class World {
       this.enemies.shift();
     }
     const boss = kind === "boss";
-    const scale = 1 + (this.wave - 1) * 0.13;
+    const scale = 1 + (this.wave - 1) * ENEMY_SCALING.hpPerWave;
     const bossDef = boss ? BOSSES[this.mapIndex % BOSSES.length] : null;
     const hp =
       (bossDef?.hp || def.hp) *
@@ -241,7 +247,7 @@ export class World {
       p.cooldown *= 0.5;
       this.popup(drop.x, drop.y - 10, "BURST +", def.color);
     } else if (drop.item === "cache") {
-      this.pendingCaches++;
+      this.queueUpgrade(true);
       this.popup(drop.x, drop.y - 10, "強化晶片", def.color);
     } else if (drop.item === "repair") {
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.15);
@@ -546,14 +552,27 @@ export class World {
     }));
   }
   queueUpgrade(guaranteed = false) {
-    if (this.state !== "playing") return;
-    this.state = "upgrade";
-    this.upgradeGuaranteed = guaranteed;
-    this.options = this.offer();
+    if (this.state === "defeat") return;
+    this.pickQueue.push(guaranteed);
+    if (!this.options.length) this.nextPick();
+    else this.events.emit("upgrade", this.options);
+  }
+  // Advance to the next queued pick; the side panel shows options while play continues.
+  nextPick() {
+    if (!this.pickQueue.length) {
+      this.options = [];
+      this.upgradeGuaranteed = false;
+    } else {
+      this.upgradeGuaranteed = this.pickQueue.shift();
+      this.options = this.offer();
+    }
     this.events.emit("upgrade", this.options);
   }
+  get pendingPicks() {
+    return (this.options.length ? 1 : 0) + this.pickQueue.length;
+  }
   reroll() {
-    if (this.state !== "upgrade" || this.rerolls <= 0) return false;
+    if (!this.options.length || this.rerolls <= 0) return false;
     this.rerolls--;
     this.options = this.offer(this.options.map((u) => u.id));
     this.events.emit("upgrade", this.options);
@@ -562,7 +581,7 @@ export class World {
   // Banishing removes an upgrade from this run's pool and refills only that slot.
   banish(id) {
     if (
-      this.state !== "upgrade" ||
+      !this.options.length ||
       this.banishes <= 0 ||
       !this.options.some((u) => u.id === id)
     )
@@ -614,7 +633,7 @@ export class World {
   }
   choose(id) {
     const option = this.options.find((u) => u.id === id);
-    if (this.state !== "upgrade" || !option) return false;
+    if (this.state === "defeat" || !option) return false;
     if (!applyUpgrade(this, id)) return false;
     const grade = option.grade;
     for (let i = 1; i < (grade?.levels || 1); i++) applyUpgrade(this, id);
@@ -624,12 +643,10 @@ export class World {
         this.player.hp + this.player.maxHp * grade.heal,
       );
     if (grade?.reroll) this.rerolls += grade.reroll;
-    this.options = [];
-    this.state = "playing";
-    this.upgradeGuaranteed = false;
     updateResonance(this);
     checkEvolutions(this);
     this.events.emit("chosen", id);
+    this.nextPick();
     return true;
   }
   skill() {

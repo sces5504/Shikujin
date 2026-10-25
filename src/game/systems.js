@@ -6,7 +6,7 @@ import { RULES, ENEMIES, MAPS } from "../content/catalog.js";
 import { behaviors } from "./patterns.js";
 import { spawnSquad, spawnCarrier } from "./formations.js";
 import { route } from "./depth.js";
-import { CARRIER } from "../content/depth.js";
+import { CARRIER, XP_CURVE } from "../content/depth.js";
 import { STAGE, BOUNDS, onStage } from "../content/stage.js";
 export function director(w, dt) {
   w.waveTime += dt;
@@ -26,6 +26,7 @@ export function director(w, dt) {
     !boss &&
     w.wave >= CARRIER.fromWave &&
     w.carrierWave !== w.wave &&
+    w.wave % CARRIER.every === 0 &&
     w.waveTime >= CARRIER.at
   ) {
     w.carrierWave = w.wave;
@@ -370,15 +371,10 @@ export function pickups(w, dt) {
     }
   }
   compact(w.drops, (d) => !d.dead);
-  if (w.pendingCaches > 0 && w.state === "playing") {
-    w.pendingCaches--;
-    w.queueUpgrade(true);
-    return;
-  }
-  if (w.xp >= w.nextXp) {
+  while (w.xp >= w.nextXp) {
     w.xp -= w.nextXp;
     w.level++;
-    w.nextXp = Math.floor(w.nextXp * 1.23 + 12);
+    w.nextXp = Math.floor(w.nextXp * XP_CURVE.mul + XP_CURVE.add);
     w.queueUpgrade();
   }
 }

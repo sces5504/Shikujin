@@ -6,7 +6,7 @@ export const GRADES = [
     name: "普通",
     en: "COMMON",
     levels: 1,
-    weight: 70,
+    weight: 84,
     color: "#9fd8e0",
   },
   {
@@ -14,7 +14,7 @@ export const GRADES = [
     name: "稀有",
     en: "RARE",
     levels: 2,
-    weight: 22,
+    weight: 13,
     color: "#6fb6ff",
   },
   {
@@ -22,7 +22,7 @@ export const GRADES = [
     name: "史詩",
     en: "EPIC",
     levels: 2,
-    weight: 7,
+    weight: 2.7,
     color: "#c58bff",
     heal: 0.3,
     reroll: 1,
@@ -32,14 +32,14 @@ export const GRADES = [
     name: "傳說",
     en: "LEGENDARY",
     levels: 3,
-    weight: 1,
+    weight: 0.3,
     color: "#ffc857",
     heal: 1,
     reroll: 1,
   },
 ];
 // Later waves tilt the odds upward; a guaranteed cache roll never offers common cards.
-export const GRADE_WAVE_SHIFT = 0.9;
+export const GRADE_WAVE_SHIFT = 0.3;
 // Thresholds count total upgrade levels carrying the tag.
 export const RESONANCE_TIERS = [3, 6];
 export const RESONANCE = {
@@ -124,15 +124,20 @@ export const ELITE_AFFIXES = {
 };
 export const ELITE = {
   fromWave: 3,
-  chance: 0.16,
-  perWave: 0.012,
-  maxChance: 0.45,
+  chance: 0.08,
+  perWave: 0.008,
+  maxChance: 0.3,
   hp: 4,
   size: 1.25,
   score: 5,
   xp: 3,
 };
-export const CARRIER = { fromWave: 2, at: 9, medals: 4 };
+// Carriers appear every `every` waves so caches stay a treat, not a stream.
+export const CARRIER = { fromWave: 2, every: 2, at: 9, medals: 4 };
+// Experience needed per level: start, then ×mul + add each level.
+export const XP_CURVE = { start: 60, mul: 1.32, add: 24 };
+// Enemy toughness growth per wave (was 0.13 before 2.1).
+export const ENEMY_SCALING = { hpPerWave: 0.18 };
 export const ROUTES = [
   {
     id: "standard",

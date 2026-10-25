@@ -14,12 +14,13 @@ import { UPGRADES } from "../content/catalog.js";
 export const route = (w) => ROUTES.find((r) => r.id === w.routeId) || ROUTES[0];
 // Odds climb with the wave; caches (elite / carrier drops) never roll common.
 export function gradeWeights(w, guaranteed = false) {
-  const k = w.wave * GRADE_WAVE_SHIFT;
+  const k = w.wave * GRADE_WAVE_SHIFT,
+    [common, rare, epic, legendary] = GRADES.map((g) => g.weight);
   return [
-    guaranteed ? 0 : Math.max(25, 70 - k * 2),
-    22 + k,
-    7 + k * 0.55,
-    1 + k * 0.13,
+    guaranteed ? 0 : Math.max(45, common - k * 2),
+    rare + k * 0.9,
+    epic + k * 0.4,
+    legendary + k * 0.08,
   ];
 }
 export function rollGrade(w, guaranteed = false) {

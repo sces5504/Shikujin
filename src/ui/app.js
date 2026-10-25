@@ -44,7 +44,8 @@ export class App {
       if (e.code === "ShiftLeft" || e.code === "ShiftRight")
         this.world?.dash(this.input.get());
       if (
-        this.world?.state === "upgrade" &&
+        this.world?.state === "playing" &&
+        this.world.options.length &&
         ["Digit1", "Digit2", "Digit3"].includes(e.code)
       ) {
         this.choose(this.world.options[Number(e.code.slice(-1)) - 1]?.id);
@@ -207,6 +208,7 @@ export class App {
     this.input.clear();
     $("hangar").classList.add("hidden");
     $("hud").classList.remove("hidden");
+    $("pickPanel").classList.add("hidden");
     $("buildIcons").innerHTML = "";
     this.closeModal();
     $("hudPilot").textContent = w.pilot.en;
@@ -336,12 +338,18 @@ export class App {
     $("overlayContent").innerHTML = "";
     if (this.world?.state === "playing") this.input.active = true;
   }
+  // Non-blocking pick panel: combat keeps running while the player chooses.
   upgrade() {
-    const w = this.world;
-    this.audio.tone(900, 0.3);
-    this.input.clear();
-    const levels = tagLevels(w);
-    // Each card shows its grade, how far it pushes every tag toward the next resonance tier.
+    const w = this.world,
+      panel = $("pickPanel");
+    if (!w || !w.options.length) {
+      panel.classList.add("hidden");
+      panel.innerHTML = "";
+      return;
+    }
+    const levels = tagLevels(w),
+      fresh = panel.classList.contains("hidden");
+    // Each card shows its grade and how far it pushes each tag toward the next resonance tier.
     const tagLine = (u) =>
       upgradeTags(u)
         .map((tag) => {
@@ -352,33 +360,36 @@ export class App {
             ),
             next = RESONANCE_TIERS.find((t) => t > now),
             hit = next && now + gain >= next;
-          return `<span class="tag-chip ${hit ? "tier-up" : ""}">${tag} ${now}→${now + gain}${next ? `/${next}` : " MAX"}${hit ? ` · ${resonanceOf(tag).name}` : ""}</span>`;
+          return `<span class="tag-chip ${hit ? "tier-up" : ""}">${tag} ${now}→${now + gain}${next ? `/${next}` : ""}</span>`;
         })
         .join("");
-    this.modal(
-      `<div class="modal-eyebrow">${w.upgradeGuaranteed ? "SALVAGED CACHE · 強化晶片解析" : "NEURAL LINK ESTABLISHED"}</div><h2 class="modal-title">${w.upgradeGuaranteed ? "晶片解析完成" : "突破極限"}</h2><p class="modal-subtitle">等級 ${pad(w.level)} · 選擇一項強化。稀有度越高一次提升越多級；同流派累積 ${RESONANCE_TIERS.join("／")} 級觸發共鳴。</p><div class="upgrade-grid">${w.options
-        .map(
-          (u, i) =>
-            `<div class="upgrade-slot"><button class="upgrade-card grade-${u.grade?.id || "common"} ${u.rarity}" data-upgrade="${u.id}" style="--grade:${u.grade?.color || "#9fd8e0"}"><div class="rarity">${u.grade ? `${u.grade.en} · ${u.grade.name}` : "TACTICAL AUGMENT"}</div><span class="upgrade-level">${i + 1} / LV.${w.upgrades[u.id] || 0}→${Math.min(u.max, (w.upgrades[u.id] || 0) + (u.grade?.levels || 1))}</span><div class="upgrade-icon">${u.icon}</div><h3>${u.name}</h3><span class="upgrade-en">${u.en}</span><p>${u.description}</p>${u.grade?.heal ? `<p class="grade-bonus">附加：修復 ${Math.round(u.grade.heal * 100)}% 生命 · 重新解析 +${u.grade.reroll}</p>` : ""}<div class="tag-row">${tagLine(u)}</div>${u.route ? `<p class="upgrade-route">${u.route}</p>` : ""}</button><button class="banish-button" data-banish="${u.id}" ${w.banishes <= 0 ? "disabled" : ""} title="永久移出本局卡池">✕ 封印</button></div>`,
-        )
-        .join(
-          "",
-        )}</div><div class="modal-actions"><button id="rerollUpgrade" class="secondary-button" ${w.rerolls <= 0 ? "disabled" : ""}>重新解析 · 剩餘 ${w.rerolls} 次</button><span class="banish-count">封印剩餘 ${w.banishes} 次</span></div><div class="key-hint">點選強化 / 按 1、2、3 選擇 · 戰鬥已暫停</div>`,
-      "upgrade",
-    );
-    $("rerollUpgrade").onclick = () => w.reroll();
-    document
+    panel.innerHTML = `<div class="pick-head"><b>${w.upgradeGuaranteed ? "強化晶片" : "待選強化"}</b><span>×${w.pendingPicks}</span><button id="rerollUpgrade" ${w.rerolls <= 0 ? "disabled" : ""} title="重新解析">↻ ${w.rerolls}</button></div>${w.options
+      .map(
+        (u, i) =>
+          `<div class="pick-slot"><button class="pick-card grade-${u.grade?.id || "common"}" data-upgrade="${u.id}" style="--grade:${u.grade?.color || "#9fd8e0"}" title="${u.description}"><kbd>${i + 1}</kbd><span class="pick-icon">${u.icon}</span><span class="pick-body"><b>${u.name}</b><small>${u.grade?.name || ""} · LV.${w.upgrades[u.id] || 0}→${Math.min(u.max, (w.upgrades[u.id] || 0) + (u.grade?.levels || 1))}</small><em>${u.description}</em><span class="tag-row">${tagLine(u)}</span></span></button><button class="pick-banish" data-banish="${u.id}" ${w.banishes <= 0 ? "disabled" : ""} title="封印：永久移出本局卡池（剩 ${w.banishes}）">✕</button></div>`,
+      )
+      .join("")}<div class="pick-hint">按 1／2／3 或點選 · 戰鬥不暫停</div>`;
+    panel.classList.remove("hidden");
+    if (fresh) {
+      panel.classList.remove("arrive");
+      void panel.offsetWidth;
+      panel.classList.add("arrive");
+      this.audio.tone(900, 0.12, "triangle", 0.03);
+    }
+    // pointerdown activation works with a second finger while the first keeps steering.
+    bindCombatAction($("rerollUpgrade"), () => w.reroll());
+    panel
       .querySelectorAll("[data-upgrade]")
-      .forEach((el) => (el.onclick = () => this.choose(el.dataset.upgrade)));
-    document
+      .forEach((el) =>
+        bindCombatAction(el, () => this.choose(el.dataset.upgrade)),
+      );
+    panel
       .querySelectorAll("[data-banish]")
-      .forEach((el) => (el.onclick = () => w.banish(el.dataset.banish)));
+      .forEach((el) => bindCombatAction(el, () => w.banish(el.dataset.banish)));
   }
   choose(id) {
     if (this.world?.choose(id)) {
-      this.closeModal();
       this.audio.tone(600, 0.12);
-      this.input.clear();
       this.updateBuild();
     }
   }
@@ -554,6 +565,7 @@ export class App {
     }
     this.input.active = false;
     this.input.clear();
+    $("pickPanel").classList.add("hidden");
     this.audio.tone(180, 0.8, "triangle");
     const retreat = result.reason === "retreat";
     const damaged = !result.clear && !retreat;

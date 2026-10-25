@@ -36,7 +36,9 @@ test("auto fire kills an enemy, drops experience and produces three distinct val
   assert.ok(w.kills >= 1);
   w.xp = w.nextXp;
   tick(w, 1);
-  assert.equal(w.state, "upgrade");
+  // Level-ups queue a pick in the side panel; combat keeps running.
+  assert.equal(w.state, "playing");
+  assert.equal(w.options.length, 3);
   assert.equal(new Set(w.options.map((u) => u.id)).size, 3);
   const { id, grade, max } = w.options[0];
   assert.equal(w.choose("nonexistent"), false);
@@ -160,7 +162,7 @@ test("high density simulation stays bounded with finite positions and health", (
   applyUpgrade(w, "missile");
   applyUpgrade(w, "drone");
   for (let i = 0; i < 7200; i++) {
-    if (w.state === "upgrade") w.choose(w.options[0].id);
+    if (w.options.length) w.choose(w.options[0].id);
     if (w.state === "intermission") w.supply("repair");
     w.step(1 / 60, { x: Math.sin(i / 180), y: Math.cos(i / 180) });
   }
@@ -234,13 +236,11 @@ test("campaign has five distinct bosses, resupply and an actual ending; endless 
 test("weapon combinations evolve exactly once and dash grants short invulnerability", () => {
   const w = new World();
   w.upgrades = { multi: 3, pierce: 1 };
-  w.state = "upgrade";
   w.options = [{ id: "pierce" }];
   const old = w.player.damage;
   assert.ok(w.choose("pierce"));
   assert.ok(w.evolutions.includes("prism"));
   assert.equal(w.player.damage, old * 1.3);
-  w.state = "upgrade";
   w.options = [{ id: "health" }];
   w.choose("health");
   assert.equal(w.evolutions.length, 1);
@@ -391,7 +391,7 @@ test("ten-minute endless stress keeps every transient collection and pool bounde
   let maxBullets = 0,
     maxDrops = 0;
   for (let i = 0; i < 36000; i++) {
-    if (w.state === "upgrade")
+    if (w.options.length)
       w.choose(w.options.find((u) => u.id === "damage")?.id || w.options[0].id);
     if (w.state === "intermission") w.supply("repair");
     if (i % 1200 === 0) w.skill();

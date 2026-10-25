@@ -206,6 +206,11 @@ export class Renderer {
     );
     const sw = STAGE.width * this.scale;
     this.fx.clip = [(this.width - sw) / 2, 0, sw, this.height];
+    // HUD panels (pick list) size themselves to the arcade side frame.
+    document.documentElement.style.setProperty(
+      "--side",
+      `${Math.max(0, (this.width - sw) / 2)}px`,
+    );
     this.vignette = this.ctx.createRadialGradient(
       this.width / 2,
       this.height / 2,

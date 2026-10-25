@@ -89,8 +89,8 @@ test("elites gain affixes, toughness and drop a guaranteed cache that opens a gr
   w.player.y = cache.y;
   w.step(1 / 60);
   w.step(1 / 60);
-  assert.equal(w.state, "upgrade");
-  assert.ok(w.upgradeGuaranteed);
+  assert.equal(w.state, "playing");
+  assert.ok(w.upgradeGuaranteed && w.options.length === 3);
 });
 test("supply carrier crosses once per wave, pays out when shot and escapes otherwise", () => {
   const w = new World({ seed: 4 });
@@ -137,4 +137,20 @@ test("routes change risk and reward; sector rank pays out on the boss kill and r
   w.supply("salvage");
   assert.equal(w.sector.hits, 0);
   assert.equal(w.routeId, "standard");
+});
+test("picks queue without pausing combat and advance one at a time", () => {
+  const w = quiet();
+  w.xp = w.nextXp * 4;
+  w.step(1 / 60);
+  assert.equal(w.state, "playing");
+  assert.ok(w.pendingPicks >= 2);
+  const time = w.time;
+  w.step(1 / 60);
+  assert.ok(w.time > time);
+  const pending = w.pendingPicks;
+  assert.ok(w.choose(w.options[0].id));
+  assert.equal(w.pendingPicks, pending - 1);
+  while (w.options.length) w.choose(w.options[0].id);
+  assert.equal(w.pendingPicks, 0);
+  assert.equal(w.choose("damage"), false);
 });
